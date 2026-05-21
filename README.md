@@ -6,10 +6,10 @@ Este proyecto contiene una suite completa y autocontenida de Red Team desarrolla
 
 El entregable está estructurado de la siguiente forma para facilitar la reproducibilidad de todas las pruebas realizadas:
 
-- **`src/target/`**: Servidor vulnerable interactivo en memoria (`vulnerable_server.py`) que simula múltiples puertos abiertos y vulnerabilidades conocidas de un servidor corporativo (ProFTPD mod_copy, Apache con RCE/debug, y MySQL expuesto).
+- **`src/target/`**: Servidor vulnerable interactivo en memoria (`vulnerable_server.py`) que simula múltiples puertos abiertos y vulnerabilidades conocidas de un servidor corporativo (SSH, Apache con Drupal vulnerable, y MySQL expuesto).
 - **`src/redteam/`**: Herramienta de auditoría automatizada (`redteam_tool.py`) encargada del escaneo de puertos (discovery), banner grabbing, mapeo de CVEs, explotación activa y escalada de privilegios a root.
 - **`evidence/`**: Logs detallados generados durante la auditoría (`redteam_execution.log`) como evidencia técnica de reproducibilidad exigida en las normas de entrega.
-- **`docs/`**: Informe técnico detallado en formatos Markdown (`Informe_Tecnico.md`) y HTML interactivo listo para imprimir a PDF (`Informe_Tecnico.html`).
+- **`docs/`**: Informe técnico detallado en formatos Markdown (`Informe_Tecnico.md`), HTML interactivo (`Informe_Tecnico.html`), código fuente LaTeX (`Informe_Tecnico.tex`) y PDF compilado listo para entregar (`Informe_Tecnico.pdf`).
 - **`run_audit.py`**: Script orquestador principal que levanta el entorno vulnerable, ejecuta el ataque de Red Team, graba la salida en tiempo real en la carpeta de evidencias y limpia el sistema al finalizar.
 - **`build_zip.py`**: Herramienta interactiva para empaquetar automáticamente todos los archivos requeridos en el formato zip `PA5-ST<NUM>.zip`.
 

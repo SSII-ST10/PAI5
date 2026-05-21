@@ -3,35 +3,31 @@
                 NIST 800-115 COMPLIANT TOOL                  
 ============================================================
 [*] Starting scan on target 127.0.0.1...
-[+] Port 2121 is OPEN. Banner: 220 ProFTPD 1.3.5 Server (ProFTPD Default Installation)
-[+] Port 8080 is OPEN. Banner: Server: Apache/2.4.7 (Ubuntu)
-[+] Port 3306 is OPEN. Banner: 
-5.5.47-0ubuntu0.14.04.1-log
+[+] Port 2222 is OPEN. Banner: SSH-2.0-OpenSSH_7.2p2 Ubuntu-4ubuntu2.10
+[+] Port 8080 is OPEN. Banner: Server: Apache/2.4.7 (Ubuntu) running Drupal 8.5.0
+[+] Port 3306 is OPEN. Banner: MySQL 5.5.47-0ubuntu0.14.04.1-log
 
 ==================================================
          VULNERABILITY ANALYSIS (CVE MAPPING)         
 ==================================================
-[CRITICAL] FTP Service (ProFTPD 1.3.5) matches CVE-2015-3306 (mod_copy).
-  - Description: The mod_copy module allows remote attackers to read and write arbitrary files via SITE CPFR/CPTO commands.
-  - Severity: 10.0 (CRITICAL) - CVSS v2.0
-  - CWE-284: Improper Access Control
-[HIGH] HTTP Web Application has active diagnostic/debug endpoint exposed.
-  - Description: Internal debug script /debug.php allows remote execution of administrative commands via the 'cmd' parameter.
+[INFO] SSH Service (OpenSSH 7.2p2) detected.
+  - Configuration: Port 2222. No known exploitable vulnerabilities in this version.
+  - Severity: 0.0 (INFORMATIONAL)
+[CRITICAL] HTTP Web Service matches CVE-2018-7600 (Drupalgeddon2).
+  - Description: Drupal 7.x and 8.x allow remote attackers to execute arbitrary code via render arrays.
   - Severity: 9.8 (CRITICAL) - CVSS v3.x
-  - CWE-94: Code Injection / Remote Command Execution
+  - CWE-94: Improper Control of Generation of Code ('Code Injection')
 [MEDIUM] MySQL database version 5.5.47 is exposed.
   - Description: Older MySQL service. Exposing database ports directly to the network violates best security practices.
   - Severity: 5.0 (MEDIUM) - CVSS v3.x
   - CWE-200: Exposure of Sensitive Information to an Unauthorized Actor
 
 ==================================================
-         EXPLORATION & EXPLOITATION: CVE-2015-3306    
+         EXPLORATION & EXPLOITATION: CVE-2018-7600    
 ==================================================
-220 ProFTPD 1.3.5 Server (ProFTPD Default Installation)
-
-FTP CPFR -> 350 File or directory exists, ready for destination name
-FTP CPTO -> 250 Copy successful
+[*] Sending Drupalgeddon2 RCE payload to write backdoor shell...
 [+] Exploitation successful! Web shell /backdoor.php created.
+[+] Web shell verification successful! /backdoor.php is active.
 
 ==================================================
          POST-EXPLOITATION & FLAG HARVESTING         
@@ -83,4 +79,4 @@ User www-data may run the following commands on public-agency-server:
 ----------------------
 [+] Privilege escalation path found! (NOPASSWD python3)
 [*] Executing root shell payload to read /root/flag_root.txt...
-[+] Root Flag: FLAG{ROOT_LEVEL_PRIVILEGE_ESCALATION_COMPLETED_CVE_2015_3306}
+[+] Root Flag: FLAG{ROOT_LEVEL_PRIVILEGE_ESCALATION_COMPLETED_CVE_2018_7600}

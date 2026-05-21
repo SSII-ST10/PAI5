@@ -6,7 +6,7 @@ import time
 import urllib.parse
 
 # Configurable Ports
-FTP_PORT = 2121
+SSH_PORT = 2222
 HTTP_PORT = 8080
 MYSQL_PORT = 3306
 
@@ -40,107 +40,48 @@ VFS = {
         "<html>\n<head><title>Gobierno de Andalucia - Portal de Transparencia</title></head>\n"
         "<body>\n<h1>Portal de Transparencia (Interno)</h1>\n"
         "<p>Bienvenido al portal de transparencia administrativa.</p>\n"
-        "<!-- TODO: Deshabilitar debug.php en produccion -->\n"
+        "<!-- Powered by Drupal 8.5.0 -->\n"
         "</body>\n</html>"
     ),
-    "/var/www/html/debug.php": (
-        "<?php\n"
-        "// Script de diagnostico interno\n"
-        "if (isset($_GET['cmd'])) {\n"
-        "    system($_GET['cmd']);\n"
-        "}\n"
-        "?>"
-    ),
     "/home/redteam/flag.txt": "FLAG{REDTEAMPRO_SYSTEM_OWNED_NIST_800_115_SUCCESS}",
-    "/root/flag_root.txt": "FLAG{ROOT_LEVEL_PRIVILEGE_ESCALATION_COMPLETED_CVE_2015_3306}"
+    "/root/flag_root.txt": "FLAG{ROOT_LEVEL_PRIVILEGE_ESCALATION_COMPLETED_CVE_2018_7600}"
 }
-
-# State variables for FTP mod_copy simulation
-ftp_cpfr_source = None
 
 # Mutex for VFS modifications
 vfs_lock = threading.Lock()
 
-# --- FTP SERVICE SIMULATOR ---
-def handle_ftp_client(client_socket, addr):
-    global ftp_cpfr_source
-    print(f"[*] FTP: Connection from {addr[0]}:{addr[1]}")
+# --- SSH SERVICE SIMULATOR ---
+def handle_ssh_client(client_socket, addr):
+    print(f"[*] SSH: Connection from {addr[0]}:{addr[1]}")
     try:
-        client_socket.sendall(b"220 ProFTPD 1.3.5 Server (ProFTPD Default Installation)\r\n")
-        
-        while True:
-            data = client_socket.recv(1024)
-            if not data:
-                break
-            
-            cmd_line = data.decode("utf-8", errors="ignore").strip()
-            if not cmd_line:
-                continue
-            
-            parts = cmd_line.split(" ", 1)
-            cmd = parts[0].upper()
-            args = parts[1] if len(parts) > 1 else ""
-            
-            print(f"[FTP LOG] Recv: {cmd_line}")
-            
-            if cmd == "USER":
-                client_socket.sendall(b"331 Password required for user.\r\n")
-            elif cmd == "PASS":
-                client_socket.sendall(b"230 User logged in, proceed.\r\n")
-            elif cmd == "SYST":
-                client_socket.sendall(b"215 UNIX Type: L8\r\n")
-            elif cmd == "PORT" or cmd == "PASV":
-                client_socket.sendall(b"200 Command okay.\r\n")
-            elif cmd == "SITE":
-                site_parts = args.split(" ", 1)
-                site_cmd = site_parts[0].upper()
-                site_args = site_parts[1] if len(site_parts) > 1 else ""
-                
-                if site_cmd == "CPFR":
-                    if site_args in VFS:
-                        ftp_cpfr_source = site_args
-                        client_socket.sendall(b"350 File or directory exists, ready for destination name\r\n")
-                    else:
-                        client_socket.sendall(b"550 No such file or directory\r\n")
-                elif site_cmd == "CPTO":
-                    if not ftp_cpfr_source:
-                        client_socket.sendall(b"503 Bad sequence of commands\r\n")
-                    else:
-                        with vfs_lock:
-                            VFS[site_args] = VFS[ftp_cpfr_source]
-                        print(f"[FTP EXPLOIT] Copied {ftp_cpfr_source} to {site_args}")
-                        ftp_cpfr_source = None
-                        client_socket.sendall(b"250 Copy successful\r\n")
-                else:
-                    client_socket.sendall(b"500 SITE Command not understood\r\n")
-            elif cmd == "QUIT":
-                client_socket.sendall(b"221 Goodbye.\r\n")
-                break
-            else:
-                client_socket.sendall(b"500 Command not understood\r\n")
+        # Send standard SSH banner and wait for client to respond or disconnect
+        client_socket.sendall(b"SSH-2.0-OpenSSH_7.2p2 Ubuntu-4ubuntu2.10\r\n")
+        client_socket.recv(1024)
     except Exception as e:
-        print(f"[!] FTP Error: {e}")
+        pass
     finally:
         client_socket.close()
 
-def start_ftp_server():
-    ftp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    ftp_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+def start_ssh_server():
+    ssh_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    ssh_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        ftp_server.bind(("127.0.0.1", FTP_PORT))
-        ftp_server.listen(5)
-        print(f"[+] FTP Service running on port {FTP_PORT} (Simulating ProFTPD 1.3.5)")
+        ssh_server.bind(("127.0.0.1", SSH_PORT))
+        ssh_server.listen(5)
+        print(f"[+] SSH Service running on port {SSH_PORT} (Simulating OpenSSH 7.2p2)")
         while True:
-            client, addr = ftp_server.accept()
-            t = threading.Thread(target=handle_ftp_client, args=(client, addr), daemon=True)
+            client, addr = ssh_server.accept()
+            t = threading.Thread(target=handle_ssh_client, args=(client, addr), daemon=True)
             t.start()
     except Exception as e:
-        print(f"[!] FTP Bind Error on port {FTP_PORT}: {e}")
+        print(f"[!] SSH Bind Error on port {SSH_PORT}: {e}")
 
-# --- HTTP SERVICE SIMULATOR ---
+# --- COMMAND EXECUTION ENGINE ---
 def simulate_command_execution(cmd_str):
-    # Simulate a few Linux commands securely to make the PoC look realistic
     cmd_str = cmd_str.strip()
+    if not cmd_str:
+        return ""
+    
     if cmd_str == "whoami":
         return "www-data\n"
     elif cmd_str == "id":
@@ -169,23 +110,37 @@ def simulate_command_execution(cmd_str):
             "User www-data may run the following commands on public-agency-server:\n"
             "    (root) NOPASSWD: /usr/bin/python3\n"
         )
-    elif cmd_str == "sudo python3 -c \"import os; os.system('cat /root/flag_root.txt')\"":
+    elif "flag_root.txt" in cmd_str:
         return VFS["/root/flag_root.txt"] + "\n"
-    elif cmd_str == "sudo python3 -c 'import os; os.system(\"cat /root/flag_root.txt\")'":
-        return VFS["/root/flag_root.txt"] + "\n"
-    elif "cat /root/flag_root.txt" in cmd_str:
-        # Check privilege escalation
-        return VFS["/root/flag_root.txt"] + "\n"
+    elif ">" in cmd_str:
+        # Handle file creation (e.g. echo 'content' > /var/www/html/backdoor.php)
+        parts = cmd_str.split(">", 1)
+        content_part = parts[0].strip()
+        dest_part = parts[1].strip()
+        
+        if content_part.startswith("echo "):
+            val = content_part[5:].strip()
+            if (val.startswith("'") and val.endswith("'")) or (val.startswith('"') and val.endswith('"')):
+                val = val[1:-1]
+        else:
+            val = content_part
+            
+        dest_path = dest_part.replace('"', '').replace("'", "")
+        with vfs_lock:
+            VFS[dest_path] = val
+        print(f"[DRUPAL EXPLOIT] File written: {dest_path}")
+        return f"File written: {dest_path}\n"
     else:
         return f"/bin/sh: 1: {cmd_str}: not found\n"
 
+# --- HTTP SERVICE SIMULATOR (Drupal 8.5.0) ---
 def handle_http_client(client_socket, addr):
     try:
-        request = client_socket.recv(2048).decode("utf-8", errors="ignore")
-        if not request:
+        request_data = client_socket.recv(4096)
+        if not request_data:
             return
         
-        # Simple HTTP request parser
+        request = request_data.decode("utf-8", errors="ignore")
         lines = request.split("\r\n")
         req_line = lines[0]
         parts = req_line.split(" ")
@@ -193,20 +148,54 @@ def handle_http_client(client_socket, addr):
             return
         
         method, full_path = parts[0], parts[1]
-        
         parsed_url = urllib.parse.urlparse(full_path)
         path = parsed_url.path
         query = urllib.parse.parse_qs(parsed_url.query)
         
+        # Read the request body for POST requests
+        body = ""
+        if method == "POST":
+            header_body_split = request.split("\r\n\r\n", 1)
+            if len(header_body_split) > 1:
+                body = header_body_split[1]
+            
+            content_length = 0
+            for line in lines:
+                if line.lower().startswith("content-length:"):
+                    content_length = int(line.split(":", 1)[1].strip())
+                    break
+            
+            already_read = len(header_body_split[1].encode("utf-8")) if len(header_body_split) > 1 else 0
+            if already_read < content_length:
+                remaining = content_length - already_read
+                body += client_socket.recv(remaining).decode("utf-8", errors="ignore")
+                
         print(f"[HTTP LOG] {method} {full_path} from {addr[0]}")
         
-        # Check if the path exists in VFS or is a virtual endpoint
         response_body = ""
         status_code = "200 OK"
         content_type = "text/html; charset=utf-8"
         
-        # Handle backdoor execution on files dynamically created by FTP
-        if path == "/backdoor.php" or path == "/var/www/html/backdoor.php":
+        # Drupalgeddon2 (CVE-2018-7600) endpoint
+        if path == "/user/register" or "user/register" in path:
+            if method == "POST":
+                parsed_body = urllib.parse.parse_qs(body)
+                mail_markup = parsed_body.get("mail[#markup]", [""])[0]
+                if mail_markup:
+                    cmd_output = simulate_command_execution(mail_markup)
+                    # Simulate Drupal AJAX insert command response
+                    response_body = (
+                        '[{"command":"insert","method":"replaceWith","selector":null,'
+                        f'"data":"{cmd_output.strip()}","settings":null}}]'
+                    )
+                    content_type = "application/json; charset=utf-8"
+                else:
+                    response_body = "<h1>Registration form</h1>"
+            else:
+                response_body = "<h1>Drupal User Registration Portal</h1>"
+                
+        # Accessing the written backdoor web shell
+        elif path == "/backdoor.php" or path == "/var/www/html/backdoor.php":
             if "/var/www/html/backdoor.php" in VFS or "/backdoor.php" in VFS:
                 cmd_param = query.get("cmd", [""])[0]
                 if cmd_param:
@@ -217,21 +206,15 @@ def handle_http_client(client_socket, addr):
             else:
                 status_code = "404 Not Found"
                 response_body = "<h1>404 Not Found</h1>"
-        elif path == "/debug.php" or path == "/var/www/html/debug.php":
-            # Native vulnerability (RCE in debug.php)
-            cmd_param = query.get("cmd", [""])[0]
-            if cmd_param:
-                response_body = simulate_command_execution(cmd_param)
-                content_type = "text/plain"
-            else:
-                response_body = "Debug diagnostics. Specify ?cmd="
+                
         elif path == "/" or path == "/index.php":
             response_body = VFS["/var/www/html/index.php"]
         else:
-            # Let's search if it's in the VFS directly
-            vfs_path = path
-            if vfs_path in VFS:
-                response_body = VFS[vfs_path]
+            if path in VFS:
+                response_body = VFS[path]
+                content_type = "text/plain"
+            elif f"/var/www/html{path}" in VFS:
+                response_body = VFS[f"/var/www/html{path}"]
                 content_type = "text/plain"
             else:
                 status_code = "404 Not Found"
@@ -259,7 +242,7 @@ def start_http_server():
     try:
         http_server.bind(("127.0.0.1", HTTP_PORT))
         http_server.listen(5)
-        print(f"[+] HTTP Web Service running on port {HTTP_PORT} (Simulating Apache 2.4.7)")
+        print(f"[+] HTTP Web Service running on port {HTTP_PORT} (Simulating Apache 2.4.7 running Drupal 8.5.0)")
         while True:
             client, addr = http_server.accept()
             t = threading.Thread(target=handle_http_client, args=(client, addr), daemon=True)
@@ -284,8 +267,6 @@ def handle_mysql_client(client_socket, addr):
         print(f"[MySQL LOG] Client Auth Received ({len(data)} bytes)")
         # Reply with login success (OK packet: 7 bytes)
         client_socket.sendall(b"\x07\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00")
-        
-        # Keep connection open for client commands or close gracefully
         time.sleep(1)
     except Exception as e:
         print(f"[!] MySQL Error: {e}")
@@ -313,17 +294,16 @@ if __name__ == "__main__":
     print("          NIST 800-115 TARGET ENVIRONMENT SETUP              ")
     print("="*60)
     
-    t_ftp = threading.Thread(target=start_ftp_server, daemon=True)
+    t_ssh = threading.Thread(target=start_ssh_server, daemon=True)
     t_http = threading.Thread(target=start_http_server, daemon=True)
     t_mysql = threading.Thread(target=start_mysql_server, daemon=True)
     
-    t_ftp.start()
+    t_ssh.start()
     t_http.start()
     t_mysql.start()
     
     print("[*] Target system started. Press Ctrl+C to stop.")
     
-    # Keep main thread alive
     try:
         while True:
             time.sleep(1)

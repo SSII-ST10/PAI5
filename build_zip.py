@@ -33,7 +33,8 @@ def build_zip():
         ("evidence/redteam_execution.log", "evidence/redteam_execution.log"),
         ("docs/Informe_Tecnico.md", "docs/Informe_Tecnico.md"),
         ("docs/Informe_Tecnico.html", "docs/Informe_Tecnico.html"),
-        ("docs/Informe_Tecnico.tex", "docs/Informe_Tecnico.tex")
+        ("docs/Informe_Tecnico.tex", "docs/Informe_Tecnico.tex"),
+        ("docs/Informe_Tecnico.pdf", "docs/Informe_Tecnico.pdf")
     ]
     
     # Check if files exist
