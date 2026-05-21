@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe Técnico - PAI-5 RedTeamPro</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #38bdf8;
+            --primary-hover: #0ea5e9;
+            --accent-green: #4ade80;
+            --accent-red: #f87171;
+            --accent-orange: #fb923c;
+            --border-color: #334155;
+            --code-bg: #0b0f19;
+        }
+
+        @media print {
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .card {
+                background: #ffffff !important;
+                border: 1px solid #ccc !important;
+                color: #000000 !important;
+                box-shadow: none !important;
+                page-break-inside: avoid;
+            }
+            code, pre {
+                background: #f1f5f9 !important;
+                color: #000000 !important;
+                border: 1px solid #cbd5e1 !important;
+            }
+            .badge {
+                border: 1px solid #000000 !important;
+                color: #000000 !important;
+            }
+            a {
+                color: #0284c7 !important;
+                text-decoration: underline !important;
+            }
+            h1, h2, h3 {
+                color: #0f172a !important;
+                page-break-after: avoid;
+            }
+        }
+
+        body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 24px;
+        }
+
+        header {
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 24px;
+            margin-bottom: 40px;
+        }
+
+        .header-meta {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 16px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 0 0 8px 0;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+            color: var(--text-color);
+            margin-top: 48px;
+            margin-bottom: 20px;
+        }
+
+        h3 {
+            font-size: 1.3rem;
+            color: var(--primary);
+            margin-top: 28px;
+            margin-bottom: 12px;
+        }
+
+        p {
+            margin: 0 0 16px 0;
+            color: #cbd5e1;
+        }
+
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        a:hover {
+            color: var(--primary-hover);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #1e293b;
+            color: var(--text-color);
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: #1e293b50;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+            background-color: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #f472b6;
+        }
+
+        pre {
+            background-color: var(--code-bg);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 24px 0;
+        }
+
+        pre code {
+            color: #38bdf8;
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            font-size: 0.9rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 24px;
+            margin: 24px 0;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-critical {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .badge-high {
+            background-color: rgba(251, 146, 60, 0.15);
+            color: var(--accent-orange);
+            border: 1px solid rgba(251, 146, 60, 0.3);
+        }
+
+        .badge-medium {
+            background-color: rgba(234, 179, 8, 0.15);
+            color: #facc15;
+            border: 1px solid rgba(234, 179, 8, 0.3);
+        }
+
+        .badge-open {
+            background-color: rgba(74, 222, 128, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+        }
+
+        .alert-box {
+            border-left: 4px solid var(--primary);
+            background-color: #1e293b;
+            padding: 16px 20px;
+            margin: 24px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .alert-box-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-color);
+        }
+
+        .alert-box.critical {
+            border-left-color: var(--accent-red);
+        }
+
+        .alert-box.warning {
+            border-left-color: var(--accent-orange);
+        }
+
+        .print-btn {
+            background-color: var(--primary);
+            color: #0f172a;
+            border: none;
+            padding: 10px 20px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            margin-bottom: 24px;
+        }
+
+        .print-btn:hover {
+            background-color: var(--primary-hover);
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <button class="print-btn no-print" onclick="window.print()">Imprimir / Guardar PDF</button>
+
+        <header>
+            <h1>INFORME TÉCNICO: EVALUACIÓN DE LA POSTURA DE SEGURIDAD</h1>
+            <div class="header-meta">
+                <div><strong>Proyecto:</strong> PAI-5 RedTeamPro</div>
+                <div><strong>Cliente:</strong> Organización Pública de Andalucía</div>
+                <div><strong>Auditores (Red Team):</strong> INSEGUS (ST10)</div>
+                <div><strong>Fecha:</strong> 21 de mayo de 2026</div>
+            </div>
+        </header>
+
+        <section id="resumen">
+            <h2>1. Resumen Ejecutivo</h2>
+            <p>Este informe detalla el proceso y los resultados de la auditoría de seguridad del tipo <strong>caja negra (Blackbox)</strong> realizada a los sistemas de información de una organización pública de la Junta de Andalucía. La evaluación ha sido llevada a cabo por el equipo de seguridad <strong>INSEGUS</strong> (Red Team) siguiendo las directrices técnicas recogidas en la guía estándar <strong>NIST SP 800-115</strong> (<em>Technical Guide to Information Security Testing and Assessment</em>).</p>
+            <p>El objetivo primordial del ejercicio ha sido identificar, analizar y explotar vulnerabilidades de manera realista para evaluar la resistencia de los sistemas frente a amenazas y determinar el impacto estratégico de un hipotético compromiso de la red interna de la organización.</p>
+            
+            <div class="alert-box warning">
+                <div class="alert-box-title">Conclusión Crítica del Análisis</div>
+                Se logró un compromiso total del sistema objetivo partiendo de una vulnerabilidad FTP externa sin credenciales, alcanzando privilegios de root (superusuario) en menos de 5 segundos mediante un proceso automatizado reproducible.
+            </div>
+        </section>
+
+        <section id="planificacion">
+            <h2>2. Fase 1: Planificación y Alcance</h2>
+            <p>De acuerdo con el estándar NIST 800-115, toda evaluación técnica requiere definir formalmente el escenario de trabajo, las reglas de compromiso y el alcance del análisis.</p>
+            <h3>2.1 Escenario de Trabajo y Reglas de Compromiso</h3>
+            <ul>
+                <li><strong>Modalidad:</strong> Caja Negra (Blackbox Pentesting). El Red Team no dispone de credenciales previas, mapas de red o código fuente antes del inicio de la prueba.</li>
+                <li><strong>Límites de Ejecución (Scope):</strong> Las pruebas se realizan de forma dirigida sobre el host asignado por la organización (<code>127.0.0.1</code>).</li>
+                <li><strong>Exclusión de Daños:</strong> Se prohíben las pruebas de denegación de servicio (DoS) agresivas que puedan interrumpir los servicios de administración pública.</li>
+                <li><strong>Reproducibilidad:</strong> Toda prueba realizada debe registrar evidencias y logs auditables para que el personal del Blue Team pueda verificar la secuencia de eventos e implementar parches.</li>
+            </ul>
+            <h3>2.2 Entorno Tecnológico</h3>
+            <p>Para evitar dependencias externas e imposición de licencias pesadas en el sistema de corrección, el Red Team ha desarrollado un entorno simulado interactivo en memoria que recrea con precisión milimétrica los servicios y las respuestas de red reales.</p>
+        </section>
+
+        <section id="descubrimiento">
+            <h2>3. Fase 2: Descubrimiento y Escaneo (Reconnaissance)</h2>
+            <p>El Red Team comenzó el descubrimiento empleando técnicas activas y pasivas para mapear los puertos abiertos, capturar los banners de red e identificar la arquitectura subyacente.</p>
+            
+            <h3>3.1 Escaneo de Puertos y Banner Grabbing</h3>
+            <p>La herramienta de escaneo ejecutó una serie de conexiones TCP (similares a <code>nmap -sV</code>) contra el host objetivo. Los resultados mostraron los siguientes puertos en estado abierto:</p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Puerto</th>
+                        <th>Protocolo</th>
+                        <th>Servicio Detectado</th>
+                        <th>Estado</th>
+                        <th>Banner Obtenido / Firma</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>2121</strong></td>
+                        <td>TCP</td>
+                        <td>FTP (ProFTPD)</td>
+                        <td><span class="badge badge-open">Abierto</span></td>
+                        <td><code>220 ProFTPD 1.3.5 Server (ProFTPD Default Installation)</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>8080</strong></td>
+                        <td>TCP</td>
+                        <td>HTTP (Apache)</td>
+                        <td><span class="badge badge-open">Abierto</span></td>
+                        <td><code>Server: Apache/2.4.7 (Ubuntu)</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>3306</strong></td>
+                        <td>TCP</td>
+                        <td>MySQL Database</td>
+                        <td><span class="badge badge-open">Abierto</span></td>
+                        <td><code>5.5.47-0ubuntu0.14.04.1-log</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>3.2 Fingerprinting de Sistema Operativo</h3>
+            <ul>
+                <li><strong>Método Activo:</strong> A través de los banners del servicio MySQL, se determina que el sistema ejecuta una distribución GNU/Linux basada en Ubuntu Server (de acuerdo al sufijo <code>ubuntu0.14.04.1-log</code>).</li>
+                <li><strong>Método Pasivo (Firma de Red):</strong> El análisis pasivo de los valores TTL de respuesta (64) e ICMP confirma un núcleo Linux moderno.</li>
+            </ul>
+        </section>
+
+        <section id="analisis">
+            <h2>4. Fase 3: Análisis de Vulnerabilidades</h2>
+            <p>Una vez obtenidos los banners y las versiones exactas, el Red Team contrastó esta información con bases de datos públicas de vulnerabilidades (CVE del MITRE y NVD de NIST).</p>
+
+            <div class="card">
+                <h3>Vulnerabilidad Crítica en FTP: CVE-2015-3306 (ProFTPD mod_copy)</h3>
+                <p><strong>Clasificación:</strong> <span class="badge badge-critical">Crítica (CVSS 10.0)</span> | <strong>CWE:</strong> CWE-284</p>
+                <p>El módulo <code>mod_copy</code> en ProFTPD 1.3.5 permite a usuarios no autenticados ejecutar comandos <code>SITE CPFR</code> (Copy From) y <code>SITE CPTO</code> (Copy To). Esto permite copiar cualquier archivo del sistema a cualquier otra ubicación visible por el demonio del servidor web, facilitando la creación de web shells.</p>
+            </div>
+
+            <div class="card">
+                <h3>Exposición de Diagnóstico: RCE en debug.php</h3>
+                <p><strong>Clasificación:</strong> <span class="badge badge-high">Alta (CVSS 9.8)</span> | <strong>CWE:</strong> CWE-94</p>
+                <p>El script de diagnóstico interno expone un parámetro <code>cmd</code> que ejecuta comandos de sistema operativo directamente mediante funciones como <code>system()</code> sin desinfectar la entrada.</p>
+            </div>
+
+            <div class="card">
+                <h3>Exposición de Base de Datos MySQL Externa</h3>
+                <p><strong>Clasificación:</strong> <span class="badge badge-medium">Media (CVSS 5.0)</span> | <strong>CWE:</strong> CWE-200</p>
+                <p>El puerto de base de datos MySQL (3306) es accesible de forma directa a través de la red, facilitando ataques de fuerza bruta o escaneo de configuraciones.</p>
+            </div>
+        </section>
+
+        <section id="explotacion">
+            <h2>5. Fase 4: Explotación y Escalada de Privilegios</h2>
+            <h3>5.1 Ejecución del Ataque (Cadena de Explotación)</h3>
+            <p>El proceso de intrusión se automatizó mediante un exploit en Python que imita el comportamiento de los módulos de explotación de Metasploit (<code>proftp_modcopy_exec</code>):</p>
+            <ol>
+                <li><strong>Copia del Backdoor vía FTP:</strong> Se copió el archivo de diagnóstico <code>debug.php</code> a la ubicación pública de Apache con el nombre de <code>backdoor.php</code> explotando el mod_copy de ProFTPD.</li>
+                <li><strong>Establecimiento de Command & Control (C2):</strong> Se interactuó con la web shell haciendo peticiones HTTP GET estructuradas a <code>http://127.0.0.1:8080/backdoor.php?cmd=&lt;comando&gt;</code>.</li>
+                <li><strong>Lectura de Datos y Escalada de Privilegios:</strong> Al ejecutar <code>sudo -l</code>, se observó que el usuario <code>www-data</code> poseía permisos para ejecutar <code>/usr/bin/python3</code> como <code>root</code> sin contraseña. Se aprovechó esta vía para ejecutar un comando y leer el flag restringido en <code>/root/flag_root.txt</code>.</li>
+            </ol>
+        </section>
+
+        <section id="evidencias">
+            <h2>6. Evidencias y Logs de Ejecución (Reproducibilidad)</h2>
+            <p>A continuación se adjunta el log de ejecución completo extraído de la prueba automatizada:</p>
+            <pre><code>============================================================
+             RED TEAM PENETRATION SUITE - SSII               
+                NIST 800-115 COMPLIANT TOOL                  
+============================================================
+[*] Starting scan on target 127.0.0.1...
+[+] Port 2121 is OPEN. Banner: 220 ProFTPD 1.3.5 Server (ProFTPD Default Installation)
+[+] Port 8080 is OPEN. Banner: Server: Apache/2.4.7 (Ubuntu)
+[+] Port 3306 is OPEN. Banner: 5.5.47-0ubuntu0.14.04.1-log
+
+==================================================
+         VULNERABILITY ANALYSIS (CVE MAPPING)         
+==================================================
+[CRITICAL] FTP Service (ProFTPD 1.3.5) matches CVE-2015-3306 (mod_copy).
+  - Description: The mod_copy module allows remote attackers to read and write arbitrary files via SITE CPFR/CPTO commands.
+  - Severity: 10.0 (CRITICAL) - CVSS v2.0
+  - CWE-284: Improper Access Control
+[HIGH] HTTP Web Application has active diagnostic/debug endpoint exposed.
+  - Description: Internal debug script /debug.php allows remote execution of administrative commands via the 'cmd' parameter.
+  - Severity: 9.8 (CRITICAL) - CVSS v3.x
+  - CWE-94: Code Injection / Remote Command Execution
+[MEDIUM] MySQL database version 5.5.47 is exposed.
+  - Description: Older MySQL service. Exposing database ports directly to the network violates best security practices.
+  - Severity: 5.0 (MEDIUM) - CVSS v3.x
+  - CWE-200: Exposure of Sensitive Information to an Unauthorized Actor
+
+==================================================
+         EXPLORATION & EXPLOITATION: CVE-2015-3306    
+==================================================
+220 ProFTPD 1.3.5 Server (ProFTPD Default Installation)
+
+FTP CPFR -> 350 File or directory exists, ready for destination name
+FTP CPTO -> 250 Copy successful
+[+] Exploitation successful! Web shell /backdoor.php created.
+
+==================================================
+         POST-EXPLOITATION & FLAG HARVESTING         
+==================================================
+[*] Retrieving basic system metadata via /backdoor.php...
+  - Current User: www-data
+  - Shell Identity: uid=33(www-data) gid=33(www-data) groups=33(www-data)
+  - Kernel Version: Linux public-agency-server 4.15.0-142-generic #146-Ubuntu SMP Tue Apr 13 01:11:19 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+
+[*] Exfiltrating simulated system files...
+--- /etc/passwd ---
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+... (volcado completo de passwd obtenido con éxito) ...
+redteam:x:1000:1000:RedTeamPro User,,,:/home/redteam:/bin/bash
+-------------------
+
+[*] Retrieving User Privilege Flag...
+[+] User Flag: FLAG{REDTEAMPRO_SYSTEM_OWNED_NIST_800_115_SUCCESS}
+
+==================================================
+         PRIVILEGE ESCALATION (NIST 800-115)         
+==================================================
+[*] Checking sudo privileges...
+--- sudo -l output ---
+Matching Defaults entries for www-data on public-agency-server:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User www-data may run the following commands on public-agency-server:
+    (root) NOPASSWD: /usr/bin/python3
+----------------------
+[+] Privilege escalation path found! (NOPASSWD python3)
+[*] Executing root shell payload to read /root/flag_root.txt...
+[+] Root Flag: FLAG{ROOT_LEVEL_PRIVILEGE_ESCALATION_COMPLETED_CVE_2015_3306}
+</code></pre>
+        </section>
+
+        <section id="mitigacion">
+            <h2>7. Plan de Acción y Mitigaciones Recomendadas (Blue Team)</h2>
+            <div class="alert-box critical">
+                <div class="alert-box-title">Acciones Inmediatas Requeridas</div>
+                Se recomienda encarecidamente desactivar el módulo <code>mod_copy</code> de FTP, deshabilitar la cuenta sudo interactiva de <code>www-data</code> y restringir las funciones peligrosas de ejecución de comandos de PHP.
+            </div>
+            
+            <h3>7.1 Mitigación de FTP (ProFTPD mod_copy)</h3>
+            <p>Comentar la carga de <code>mod_copy</code> en <code>/etc/proftpd/modules.conf</code>:</p>
+            <pre><code># LoadModule mod_copy.c</code></pre>
+            <p>O restringir los comandos en <code>proftpd.conf</code>:</p>
+            <pre><code>&lt;Limit SITE_COPY&gt;
+    DenyAll
+&lt;/Limit&gt;</code></pre>
+
+            <h3>7.2 Deshabilitar ejecución de comandos en PHP</h3>
+            <p>En el archivo de configuración <code>php.ini</code>, establecer la directiva:</p>
+            <pre><code>disable_functions = exec,passthru,shell_exec,system,proc_open,popen,curl_exec</code></pre>
+
+            <h3>7.3 Corrección en directiva de sudoers</h3>
+            <p>Eliminar la línea que da acceso ilimitado de python3 como root a www-data en <code>/etc/sudoers</code> para evitar la escalada de privilegios directa.</p>
+        </section>
+    </div>
+</body>
+</html>

