@@ -31,13 +31,3 @@ Para ejecutar la prueba de concepto completa y reproducir el informe técnico en
 4. Revise el archivo `evidence/redteam_execution.log` donde se almacenarán automáticamente todas las evidencias técnicas estructuradas de la explotación.
 
 ---
-
-## Generación del Entregable ZIP
-
-Para empaquetar el proyecto final de acuerdo con las especificaciones de entrega de la asignatura, ejecute:
-
-```bash
-python3 build_zip.py
-```
-
-El script le solicitará ingresar su número de **Security Team** (por ejemplo, `10`) y generará automáticamente el archivo empaquetado correspondiente (e.g., `PA5-ST10.zip`) con toda la estructura de código fuente, logs de evidencias e informes técnicos en su interior.

@@ -32,7 +32,8 @@ def build_zip():
         ("src/redteam/redteam_tool.py", "src/redteam/redteam_tool.py"),
         ("evidence/redteam_execution.log", "evidence/redteam_execution.log"),
         ("docs/Informe_Tecnico.md", "docs/Informe_Tecnico.md"),
-        ("docs/Informe_Tecnico.html", "docs/Informe_Tecnico.html")
+        ("docs/Informe_Tecnico.html", "docs/Informe_Tecnico.html"),
+        ("docs/Informe_Tecnico.tex", "docs/Informe_Tecnico.tex")
     ]
     
     # Check if files exist
