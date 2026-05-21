@@ -4,8 +4,9 @@
 ============================================================
 [*] Starting scan on target 127.0.0.1...
 [+] Port 2222 is OPEN. Banner: SSH-2.0-OpenSSH_7.2p2 Ubuntu-4ubuntu2.10
-[+] Port 8080 is OPEN. Banner: Server: Apache/2.4.7 (Ubuntu) running Drupal 8.5.0
-[+] Port 3306 is OPEN. Banner: MySQL 5.5.47-0ubuntu0.14.04.1-log
+[+] Port 8080 is OPEN. Banner: Apache/2.4.7 (Ubuntu) running Drupal 8.5.0
+[+] Port 3306 is OPEN. Banner: MySQL 
+5.5.47-0ubuntu0.14.04.1-log
 
 ==================================================
          VULNERABILITY ANALYSIS (CVE MAPPING)         
@@ -27,7 +28,6 @@
 ==================================================
 [*] Sending Drupalgeddon2 RCE payload to write backdoor shell...
 [+] Exploitation successful! Web shell /backdoor.php created.
-[+] Web shell verification successful! /backdoor.php is active.
 
 ==================================================
          POST-EXPLOITATION & FLAG HARVESTING         

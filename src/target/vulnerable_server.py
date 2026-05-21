@@ -114,7 +114,7 @@ def simulate_command_execution(cmd_str):
         return VFS["/root/flag_root.txt"] + "\n"
     elif ">" in cmd_str:
         # Handle file creation (e.g. echo 'content' > /var/www/html/backdoor.php)
-        parts = cmd_str.split(">", 1)
+        parts = cmd_str.rsplit(">", 1)
         content_part = parts[0].strip()
         dest_part = parts[1].strip()
         
@@ -125,7 +125,7 @@ def simulate_command_execution(cmd_str):
         else:
             val = content_part
             
-        dest_path = dest_part.replace('"', '').replace("'", "")
+        dest_path = dest_part.replace('"', '').replace("'", "").strip()
         with vfs_lock:
             VFS[dest_path] = val
         print(f"[DRUPAL EXPLOIT] File written: {dest_path}")
